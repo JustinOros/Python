@@ -54,6 +54,6 @@ if response:
             print()
             break
 else:
-    print('An error has occured.')
+    print('An error has occurred.')
 
 
