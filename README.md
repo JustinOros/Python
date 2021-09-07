@@ -8,5 +8,5 @@
     Overall Rank: 809
     Current Rank: 166
 
-## Linux / macOS Pre-reqs
-    pip3 install bs4 lxml
+## Linux / macOS / Windows Pre-reqs
+    pip3 install bs4 lxml requests
