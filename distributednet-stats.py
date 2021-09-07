@@ -45,15 +45,17 @@ if response:
         if line == 1:
             overall_rank = match.text.lstrip()
             if overall_rank[0] != "T" and overall_rank[0] != "0":
+                overall_rank = overall_rank.split('(')
+                overall_rank = overall_rank[0]
                 print ("Overall Rank: " + overall_rank)
         if line == 2:
             current_rank = match.text.lstrip()
             if current_rank[0] != "0":
+                current_rank = current_rank.split('(')
+                current_rank = current_rank[0]
                 print ("Current Rank: " + current_rank)
         if line == 3:
             print()
             break
 else:
-    print('An error has occurred.')
-
-
+    print('An error has occured.')
