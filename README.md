@@ -1,6 +1,6 @@
 # distributednet-stats.py
-## Summary: A cli interface to https://stats.distributed.net written in python
-### Usage: python3 distributednet-stats.py <user@domain.tld>
+    Summary: A cli interface to https://stats.distributed.net written in python
+    Usage: python3 distributednet-stats.py <user@domain.tld>
 
 ## Example Output: 
     User: user@domain.tld
