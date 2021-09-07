@@ -7,7 +7,7 @@ import sys
 # check to see if we have input
 if len(sys.argv) <= 1:
     print()
-    print('Usage: python distributednet-stats.py <user@domain.tld>')
+    print('Usage: distributednet-stats.py <user@domain.tld>')
     print()
     sys.exit()
 
