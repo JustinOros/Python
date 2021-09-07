@@ -6,5 +6,5 @@
 ## Example Output: 
 ### User: user@domain.tld
 ### Project: RC5-72 
-### Overall Rank: 809(2) 
-### Current Rank: 166(121) 
+### Overall Rank: 809
+### Current Rank: 166
