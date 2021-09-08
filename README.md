@@ -20,8 +20,8 @@
 ## Example Output
     User: user@domain.tld
     Project: RC5-72 
-    Overall Rank: 809
-    Current Rank: 166
+    Overall Rank: 555
+    Current Rank: 143
 
 ## Pre-reqs (Linux / macOS / Windows)
     pip3 install bs4 lxml requests
