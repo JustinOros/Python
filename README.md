@@ -15,7 +15,7 @@
     26 = OGR-26 Optimal Golomb Rulers
     27 = OGR-27 Optimal Golomb Rulers
     28 = OGR-28 Optimal Golomb Rulers
-    ===================================
+    ==================================
 
 ## Example Output: 
     User: user@domain.tld
