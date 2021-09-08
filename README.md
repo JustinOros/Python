@@ -17,11 +17,11 @@
     28 = OGR-28 Optimal Golomb Rulers
     ==================================
 
-## Example Output: 
+## Example Output
     User: user@domain.tld
     Project: RC5-72 
     Overall Rank: 809
     Current Rank: 166
 
-## Linux / macOS / Windows Pre-reqs
+## Pre-reqs (Linux / macOS / Windows)
     pip3 install bs4 lxml requests
