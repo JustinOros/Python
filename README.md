@@ -1,6 +1,6 @@
 # dnet-stats.py
 
-    Summary: A cli interface to https://stats.distributed.net written in python
+    Summary: A cli interface to https://stats.distributed.net
     
     Usage: dnet-stats.py [user] [project]
 
