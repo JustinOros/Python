@@ -1,4 +1,4 @@
-# distributednet-stats.py
+# dnet-stats.py
 
     Summary: A cli interface to https://stats.distributed.net written in python
     
