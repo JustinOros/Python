@@ -7,9 +7,9 @@ searchUrl = 'https://stats.distributed.net/participant/psearch.php'
 
 # Valid Distributed.net Projects (and associated ID)
 validProjects = {
-    'RSA-56' : 3,
-    'RSA-64' : 5,
-    'RSA-72' : 8,
+    'RC5-56' : 3,
+    'RC5-64' : 5,
+    'RC5-72' : 8,
     'OGR-24' : 24,
     'OGR-25' : 25,
     'OGR-26' : 26,
@@ -23,9 +23,9 @@ def printHelp():
         '\nUsage: dnet-stats.py [user] [project]\n' +
         '\nPROJECTs' +
         '\n========' +
-        '\n RSA-56 ' +
-        '\n RSA-64 ' +
-        '\n RSA-72 ' +
+        '\n RC5-56 ' +
+        '\n RC5-64 ' +
+        '\n RC5-72 ' +
         '\n OGR-24 ' + 
         '\n OGR-25 ' +
         '\n OGR-26 ' +
@@ -49,7 +49,7 @@ myProject = sys.argv[2].upper()
 # if we have all arguments needed, proceed...
 if len(sys.argv) == 3:
     # ensure the project argument is a valid project
-    if sys.argv[2].upper() in ['RSA-56','RSA-64','RSA-72','OGR-24','OGR-25','OGR-26','OGR-27','OGR-28']: 
+    if sys.argv[2].upper() in ['RC5-56','RC5-64','RC5-72','OGR-24','OGR-25','OGR-26','OGR-27','OGR-28']: 
         # if it is valid, store the Project ID into a variable
         projectId = validProjects[sys.argv[2].upper()]
     else:
