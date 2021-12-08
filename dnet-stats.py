@@ -5,6 +5,19 @@ import requests, sys
 # Distributed.net participant search form
 searchUrl = 'https://stats.distributed.net/participant/psearch.php'
 
+# Output Formatting
+class FORMAT:
+    PINK = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    REGULAR = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    ITALICS = '\x1B[3m'
+
 # Valid Distributed.net Projects (and associated ID)
 validProjects = {
     'RC5-56' : 3,
@@ -20,24 +33,16 @@ validProjects = {
 # Help menu
 def printHelp():
     print(
-        '\nUsage: dnet-stats.py [user] [project]\n' +
-        '\nPROJECTs' +
-        '\n========' +
-        '\n RC5-56 ' +
-        '\n RC5-64 ' +
-        '\n RC5-72 ' +
-        '\n OGR-24 ' + 
-        '\n OGR-25 ' +
-        '\n OGR-26 ' +
-        '\n OGR-27 ' +
-        '\n OGR-28 ' +
-        '\n========\n'
+        FORMAT.BOLD + FORMAT.GREEN + '\nExample: ' + 
+        FORMAT.REGULAR + FORMAT.GREEN + 'dnet-stats.py bluecat9@penguinized.net RC5-72\n' +
+        FORMAT.BOLD + FORMAT.GREEN + '\nProjects: ' + 
+        FORMAT.REGULAR + FORMAT.GREEN + 'RC5-56, RC5-64, RC5-72, OGR-24, OGR-25, OGR-26, OGR-27, OGR-28\n'
         )
     exit()
 
 # If no arguments are given, display Help Menu
 if len(sys.argv) <= 2:
-    print('\nError: Please specify user and project.')
+    print( FORMAT.BOLD + FORMAT.RED + '\nError: Please specify username' + FORMAT.ITALICS + ' and ' + FORMAT.REGULAR + FORMAT.BOLD + FORMAT.RED + 'project.')
     printHelp()
 
 # get username from user input
@@ -54,7 +59,7 @@ if len(sys.argv) == 3:
         projectId = validProjects[sys.argv[2].upper()]
     else:
         # otherwise, let the user know their project was not valid
-        print('\nError: ' + sys.argv[2].upper() + ' is not a valid project.')
+        print(FORMAT.BOLD + FORMAT.RED + '\nError: ' + sys.argv[2].upper() + ' is not a valid project.')
         printHelp()
         exit()
 
@@ -67,13 +72,13 @@ if response: # if we received a response
     summary = soup.find('td',class_='htitle').text.lstrip() # find summary
 
     if "Summary" in summary:
-        print('\nUser: ' + myUser) # print user
+        print(FORMAT.BOLD + FORMAT.YELLOW + '\nUser: ' + FORMAT.BLUE + myUser + FORMAT.REGULAR) # print user
         summary = " ".join(summary.split()) # remove extra spaces from summary
         summary = summary.split('/') # split summary and project into 2 strings
         project = summary[0] # store the project name from the summary into a variable
-        print('Project: ' + project) # print project
+        print(FORMAT.BOLD + FORMAT.YELLOW + 'Project: ' + FORMAT.REGULAR + FORMAT.CYAN + project) # print project
     else: 
-        print('\n' + myUser + ' not found for project ' + myProject + '.\n') # notify if user not found
+        print('\n' + FORMAT.BOLD + FORMAT.RED + 'Error: ' + myUser + ' not found for project ' + myProject + '.\n') # notify if user not found
         exit()
 
     line = 0
@@ -90,8 +95,8 @@ if response: # if we received a response
                 currentRank = currentRank.split('(')
                 currentRank = currentRank[0]
         if line == 3: # stop searching soup
-            print ('Current Rank: ' + currentRank)
-            print ('Overall Rank: ' + overallRank + '\n')
+            print (FORMAT.BOLD + FORMAT.YELLOW + 'Current Rank: ' + FORMAT.YELLOW + FORMAT.GREEN + FORMAT.UNDERLINE + currentRank + FORMAT.REGULAR)
+            print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall Rank: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + '\n')
             break
 else:
-    print('An error has occured.')
+    print(FORMAT.BOLD + FORMAT.RED + 'An error has occured.')
