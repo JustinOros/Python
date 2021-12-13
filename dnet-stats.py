@@ -106,7 +106,7 @@ if response: # if we received a response
                 currentRank = currentRank[0]
         if line == 3: # print current and overall rank
             print (FORMAT.BOLD + FORMAT.YELLOW + 'Current Rank: ' + FORMAT.YELLOW + FORMAT.GREEN + FORMAT.UNDERLINE + currentRank + FORMAT.REGULAR)
-            print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall Rank: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + '\n')
+            print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall Rank: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + FORMAT.REGULAR + '\n')
             break
 else:
     print(FORMAT.BOLD + FORMAT.RED + 'An error has occured.')
