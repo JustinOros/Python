@@ -109,4 +109,4 @@ if response: # if we received a response
             print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall Rank: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + FORMAT.REGULAR + '\n')
             break
 else:
-    print(FORMAT.BOLD + FORMAT.RED + 'An error has occured.')
+    print(FORMAT.BOLD + FORMAT.RED + 'An error has occured.' + FORMAT.REGULAR)
