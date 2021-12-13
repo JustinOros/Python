@@ -35,7 +35,7 @@ def helpHint():
     if len(sys.argv) > 1:
         if sys.argv[1].lower() == 'help':
             helpMenu()
-    print(FORMAT.GREEN + '\nType ' + FORMAT.BOLD + FORMAT.ITALICS + 'dnet-stats.py help' + FORMAT.REGULAR + FORMAT.GREEN + ' for the help menu.\n')
+    print(FORMAT.GREEN + '\nType ' + FORMAT.BOLD + FORMAT.ITALICS + 'dnet-stats.py help' + FORMAT.REGULAR + FORMAT.GREEN + ' for the help menu.\n' + FORMAT.REGULAR)
     exit()
 
 # Help Menu (Main)
@@ -47,7 +47,7 @@ def helpMenu():
         FORMAT.BOLD + FORMAT.GREEN + '\nProjects: ' + 
         FORMAT.REGULAR + FORMAT.GREEN + 'RC5-56, RC5-64, RC5-72, OGR-24, OGR-25, OGR-26, OGR-27, OGR-28\n' +
         FORMAT.BOLD + FORMAT.GREEN + '\nExample: ' + 
-        FORMAT.REGULAR + FORMAT.GREEN + 'dnet-stats.py bluecat9@penguinized.net RC5-72\n'
+        FORMAT.REGULAR + FORMAT.GREEN + 'dnet-stats.py bluecat9@penguinized.net RC5-72\n' + FORMAT.REGULAR
         )
     exit()
 
@@ -69,7 +69,7 @@ if len(sys.argv) == 3:
         projectId = validProjects[sys.argv[2].upper()]
     else:
         # otherwise, let the user know their project was not valid
-        print(FORMAT.BOLD + FORMAT.RED + '\nError: ' + sys.argv[2].upper() + ' is not a valid project.\n')
+        print(FORMAT.BOLD + FORMAT.RED + '\nError: ' + sys.argv[2].upper() + ' is not a valid project.\n' + FORMAT.REGULAR)
         exit()
 
 data = {'project_id':projectId,'st':myUser} # along with the project id
