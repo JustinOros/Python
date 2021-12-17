@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# Author: Justin Oros
+# Source: https://github.com/JustinOros
 from bs4 import BeautifulSoup
 import requests, sys
 
@@ -105,8 +107,14 @@ if response: # if we received a response
                 currentRank = currentRank.split('(')
                 currentRank = currentRank[0]
         if line == 3: # print current and overall rank
-            print (FORMAT.BOLD + FORMAT.YELLOW + 'Current Rank: ' + FORMAT.YELLOW + FORMAT.GREEN + FORMAT.UNDERLINE + currentRank + FORMAT.REGULAR)
-            print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall Rank: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + FORMAT.REGULAR + '\n')
+            print (FORMAT.BOLD + FORMAT.YELLOW + 'Rank: ' + FORMAT.YELLOW + FORMAT.GREEN + FORMAT.UNDERLINE + currentRank + FORMAT.REGULAR)
+            print (FORMAT.BOLD + FORMAT.YELLOW + 'Overall: ' + FORMAT.YELLOW + FORMAT.PINK + overallRank + FORMAT.REGULAR)
             break
+
+    # get last update date
+    lastUpdate = soup.find('td',class_="lastupdate").text.split()
+    lastUpdate = lastUpdate[8].lstrip()
+    print(FORMAT.BOLD + FORMAT.YELLOW + 'Updated: ' + FORMAT.BLUE + lastUpdate + FORMAT.REGULAR + '\n')
+
 else:
     print(FORMAT.BOLD + FORMAT.RED + 'An error has occured.' + FORMAT.REGULAR)
