@@ -60,7 +60,7 @@ def helpMenu():
         Text.Bold + Text.Green + '\nProjects: ' + 
         Text.Reset + Text.Green + 'RC5-56, RC5-64, RC5-72, OGR-24, OGR-25, OGR-26, OGR-27, OGR-28\n' +
         Text.Bold + Text.Green + '\nExample: ' + 
-        Text.Reset + Text.Green + 'dnet-stats.py Bluecat9@penguinized.net RC5-72\n' + Text.Reset
+        Text.Reset + Text.Green + 'dnet-stats.py bluecat9@penguinized.net RC5-72\n' + Text.Reset
         )
     exit()
 
