@@ -3,16 +3,16 @@
 $ pip3 install -r requirements.txt
 ```
 
-# azpowerball.py
+# powerball.py
 
-    A command-line interface to https://powerball.com   
+    A command-line interface to powerball.com   
 ```
-$ python3 azpowerball.sh
+$ python3 powerball.sh
 ```
     
 # dnet-stats.py
 
-    A command-line interface to https://stats.distributed.net   
+    A command-line interface to stats.distributed.net   
 ```
 $ python3 dnet-stats.py [user] [project]
 ```
