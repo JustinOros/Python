@@ -3,7 +3,6 @@
 # Usage: python3 dnet-stats.py <user> <project> 
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
-
 from bs4 import BeautifulSoup
 import requests, sys
 
