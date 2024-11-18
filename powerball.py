@@ -1,12 +1,12 @@
 #!/usr/bin/python3
-# Description: CLI to https://powerball.com (prints previous winning results)
-# Usage: python3 powerball.py
+# Description: CLI to https://powerball.com (prints winning powerball results)
+# Usage: python3 powerball.py [-List|-L]
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
-# Dependencies: pip install requests beautifulsoup4
 
 import requests
 from bs4 import BeautifulSoup as BS
+import sys
 
 # ANSI escape codes for text formatting
 RED = '\033[31m'
@@ -31,9 +31,16 @@ powerballs = soup.find_all('div', class_='form-control col powerball item-powerb
 # Initalize and Set starting positions
 whiteballPos = powerballPos = 0
 
-# Loop through previous Drawing Dates
-for date in drawingDates:
-    # Print Drawing Date
+# Check for arguments to decide if we should print all or just the first line
+if len(sys.argv) > 1 and sys.argv[1].lower() in ['-list', '-l']:
+    # If -List or -L is present, print all lines
+    print_all = True
+else:
+    # If no arguments or other arguments, print only the first line
+    print_all = False
+
+# Function to print a single line of results
+def print_line(date, whiteballPos, powerballPos):
     print(date.text.strip() + ":", end=" ")
 
     # Print 5 White Balls
@@ -44,3 +51,15 @@ for date in drawingDates:
     # Print 1 Power Ball in red
     print(RED + powerballs[powerballPos].text.strip() + RESET)
     powerballPos += 1
+
+    return whiteballPos, powerballPos
+
+# Loop through previous Drawing Dates and print results
+if print_all:
+    # Print all lines if -List or -L is present
+    for date in drawingDates:
+        whiteballPos, powerballPos = print_line(date, whiteballPos, powerballPos)
+else:
+    # Print only the first line
+    if drawingDates:
+        print_line(drawingDates[0], whiteballPos, powerballPos)
