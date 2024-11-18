@@ -74,9 +74,9 @@ project = None
 
 # Check if the arguments are provided and valid
 for i in range(1, len(sys.argv)):
-    if sys.argv[i] == "-Project" and i + 1 < len(sys.argv):
+    if sys.argv[i].lower() == "-project" and i + 1 < len(sys.argv):
         project = sys.argv[i + 1].upper()
-    if sys.argv[i] == "-User" and i + 1 < len(sys.argv):
+    if sys.argv[i].lower() == "-user" and i + 1 < len(sys.argv):
         user = sys.argv[i + 1]
 
 # Ensure both project and user are present
