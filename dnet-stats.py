@@ -1,8 +1,10 @@
 #!/usr/bin/python3
 # Description: A command-line interface to stats.distributed.net 
-# Usage: python3 dnet-stats.py <user> <project> 
+# Usage: python3 dnet-stats.py -User <username> -Project <project> 
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
+# Dependencies: pip install requests beautifulsoup4
+
 from bs4 import BeautifulSoup
 import requests, sys
 
@@ -11,14 +13,14 @@ searchUrl = 'https://stats.distributed.net/participant/psearch.php'
 
 # Distributed.net Projects (and associated IDs)
 validProjects = {
-    'RC5-56' : 3,
-    'RC5-64' : 5,
-    'RC5-72' : 8,
-    'OGR-24' : 24,
-    'OGR-25' : 25,
-    'OGR-26' : 26,
-    'OGR-27' : 27,
-    'OGR-28' : 28,
+    'RC5-56': 3,
+    'RC5-64': 5,
+    'RC5-72': 8,
+    'OGR-24': 24,
+    'OGR-25': 25,
+    'OGR-26': 26,
+    'OGR-27': 27,
+    'OGR-28': 28,
 }
 
 # Text Colors & Formatting
@@ -58,76 +60,81 @@ def helpMenu():
     print(
         Text.Bold + Text.Green + '\nHelp Menu:\n' + 
         Text.Bold + Text.Green + '\nUsage: ' + 
-        Text.Reset + Text.Green + 'dnet-stats.py <username> <project>\n' +
+        Text.Reset + Text.Green + 'dnet-stats.py -User <username> -Project <project>\n' +
         Text.Bold + Text.Green + '\nProjects: ' + 
         Text.Reset + Text.Green + 'RC5-56, RC5-64, RC5-72, OGR-24, OGR-25, OGR-26, OGR-27, OGR-28\n' +
         Text.Bold + Text.Green + '\nExample: ' + 
-        Text.Reset + Text.Green + 'dnet-stats.py bluecat9@penguinized.net RC5-72\n' + Text.Reset
-        )
+        Text.Reset + Text.Green + 'python3 dnet-stats.py -User bluecat9@penguinized.net -Project RC5-72\n' + Text.Reset
+    )
     exit()
 
-# If no arguments are given, display Help Menu hint
-if len(sys.argv) <= 2:
-    helpHint()
+# Parse command-line arguments
+user = None
+project = None
 
-# get username from user input
-myUser = sys.argv[1]
+# Check if the arguments are provided and valid
+for i in range(1, len(sys.argv)):
+    if sys.argv[i] == "-User" and i + 1 < len(sys.argv):
+        user = sys.argv[i + 1]
+    if sys.argv[i] == "-Project" and i + 1 < len(sys.argv):
+        project = sys.argv[i + 1].upper()
 
-# get project from user input
-myProject = sys.argv[2].upper()
+# Check if both user and project are provided
+if not user or not project:
+    print(Text.Bold + Text.Red + "Error: Missing required arguments. Use -User and -Project." + Text.Reset)
+    helpMenu()
 
-# if we have all arguments needed, proceed...
-if len(sys.argv) == 3:
-    # ensure the project argument is a valid project
-    if sys.argv[2].upper() in ['RC5-56','RC5-64','RC5-72','OGR-24','OGR-25','OGR-26','OGR-27','OGR-28']: 
-        # if it is valid, store the Project ID into a variable
-        projectId = validProjects[sys.argv[2].upper()]
-    else:
-        # otherwise, let the user know their project was not valid
-        print(Text.Bold + Text.Red + '\nError: ' + sys.argv[2].upper() + ' is not a valid project.\n' + Text.Reset)
-        exit()
+# Ensure the project argument is a valid project
+if project not in validProjects:
+    print(Text.Bold + Text.Red + f"Error: {project} is not a valid project.\n" + Text.Reset)
+    helpMenu()
 
-data = {'project_id':projectId,'st':myUser} # along with the project id
+# Get project ID
+projectId = validProjects[project]
 
-response = requests.post(searchUrl,data=data) # perfom a form post and get the response
+# Prepare data for the request
+data = {'project_id': projectId, 'st': user}
 
-if response: # if we received a response
-    soup = BeautifulSoup(response.text, 'lxml') # load the response into BeautifulSoup
+# Perform a POST request to fetch the response
+response = requests.post(searchUrl, data=data)
 
-    summary = soup.find('td',class_='htitle').text.lstrip() # find summary
+if response:  # If we received a response
+    soup = BeautifulSoup(response.text, 'lxml')  # Load the response into BeautifulSoup
+
+    summary = soup.find('td', class_='htitle').text.lstrip()  # Find summary
 
     if "Summary" in summary:
-        print(Text.Bold + Color.Theme1 + '\nUser: ' + myUser + Text.Reset) # print user
-        summary = " ".join(summary.split()) # remove extra spaces from summary
-        summary = summary.split('/') # split summary and project into 2 strings
-        project = summary[0] # store the project name from the summary into a variable
-        print(Text.Bold + Color.Theme2 + 'Project: ' + project) # print project
-    else: 
-        print('\n' + Text.Bold + Text.Red + 'Error: ' + myUser + ' not found for project ' + myProject + '.\n' + Text.Reset) # notify if user not found
+        print(Text.Bold + Color.Theme1 + '\nUser: ' + user + Text.Reset)  # Print user
+        summary = " ".join(summary.split())  # Remove extra spaces from summary
+        summary = summary.split('/')  # Split summary and project into 2 strings
+        project_name = summary[0]  # Store the project name from the summary into a variable
+        print(Text.Bold + Color.Theme2 + 'Project: ' + project_name)  # Print project
+    else:
+        print('\n' + Text.Bold + Text.Red + 'Error: ' + user + ' not found for project ' + project + '.\n' + Text.Reset)  # Notify if user not found
         exit()
 
     line = 0
-    for match in soup.find_all('td',align='right'): # search soup for table data
-        line +=1
-        if line == 1: # get overall rank
+    for match in soup.find_all('td', align='right'):  # Search soup for table data
+        line += 1
+        if line == 1:  # Get overall rank
             overallRank = match.text.lstrip()
             if overallRank[0] != "T" and overallRank[0] != "0":
                 overallRank = overallRank.split('(')
                 overallRank = overallRank[0]
-        if line == 2: # get current rank
+        if line == 2:  # Get current rank
             currentRank = match.text.lstrip()
             if currentRank[0] != "0":
                 currentRank = currentRank.split('(')
                 currentRank = currentRank[0]
-        if line == 3: # print current and overall rank
-            print (Text.Bold + Color.Theme3 + 'Rank: ' + Text.Underline + currentRank + Text.Reset)
-            print (Text.Bold + Color.Theme4 + 'Overall: ' + overallRank + Text.Reset)
+        if line == 3:  # Print current and overall rank
+            print(Text.Bold + Color.Theme3 + 'Rank: ' + Text.Underline + currentRank + Text.Reset)
+            print(Text.Bold + Color.Theme4 + 'Overall: ' + overallRank + Text.Reset)
             break
 
-    # get last update date
-    lastUpdate = soup.find('td',class_="lastupdate").text.split()
+    # Get last update date
+    lastUpdate = soup.find('td', class_="lastupdate").text.split()
     lastUpdate = lastUpdate[8].lstrip()
     print(Text.Bold + Color.Theme5 + 'Updated: ' + lastUpdate + Text.Reset + '\n')
 
 else:
-    print(Text.Bold + Text.Red + 'An error has occuRed.' + Text.Reset)
+    print(Text.Bold + Text.Red + 'An error has occurred while fetching data.' + Text.Reset)
