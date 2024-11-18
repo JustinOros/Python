@@ -3,7 +3,7 @@
 # Usage: python3 dnet-stats.py -Project <project> -User <username>
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
-# Dependencies: pip install requests beautifulsoup4
+# Dependencies: pip install requests beautifulsoup4 lxml
 
 from bs4 import BeautifulSoup
 import requests, sys
