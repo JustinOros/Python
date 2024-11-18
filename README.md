@@ -6,7 +6,7 @@ pip3 install -r requirements.txt
 ### powerball.py 
 `A command-line interface to powerball.com`
 ```
-python3 powerball.sh
+python3 powerball.py [-List|-L]
 ```
     
 ### dnet-stats.py
