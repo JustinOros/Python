@@ -12,5 +12,5 @@ python3 powerball.sh
 ### dnet-stats.py
 `A command-line interface to stats.distributed.net`
 ```
-python3 dnet-stats.py <user> <project>
+python3 dnet-stats.py -Project <project> -User <user>
 ```
