@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-# Description: A command-line interface to stats.distributed.net 
-# Usage: python3 dnet-stats.py -User <username> -Project <project> 
+# Description: A command-line interface to https://stats.distributed.net 
+# Usage: python3 dnet-stats.py -Project <project> -User <username>
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 # Dependencies: pip install requests beautifulsoup4
@@ -60,11 +60,11 @@ def helpMenu():
     print(
         Text.Bold + Text.Green + '\nHelp Menu:\n' + 
         Text.Bold + Text.Green + '\nUsage: ' + 
-        Text.Reset + Text.Green + 'dnet-stats.py -User <username> -Project <project>\n' +
+        Text.Reset + Text.Green + 'dnet-stats.py -Project <project> -User <username>\n' +
         Text.Bold + Text.Green + '\nProjects: ' + 
         Text.Reset + Text.Green + 'RC5-56, RC5-64, RC5-72, OGR-24, OGR-25, OGR-26, OGR-27, OGR-28\n' +
         Text.Bold + Text.Green + '\nExample: ' + 
-        Text.Reset + Text.Green + 'python3 dnet-stats.py -User bluecat9@penguinized.net -Project RC5-72\n' + Text.Reset
+        Text.Reset + Text.Green + 'python3 dnet-stats.py -Project RC5-72 -User bluecat9@penguinized.net\n' + Text.Reset
     )
     exit()
 
@@ -74,17 +74,17 @@ project = None
 
 # Check if the arguments are provided and valid
 for i in range(1, len(sys.argv)):
-    if sys.argv[i] == "-User" and i + 1 < len(sys.argv):
-        user = sys.argv[i + 1]
     if sys.argv[i] == "-Project" and i + 1 < len(sys.argv):
         project = sys.argv[i + 1].upper()
+    if sys.argv[i] == "-User" and i + 1 < len(sys.argv):
+        user = sys.argv[i + 1]
 
-# Check if both user and project are provided
+# Ensure both project and user are present
 if not user or not project:
-    print(Text.Bold + Text.Red + "Error: Missing required arguments. Use -User and -Project." + Text.Reset)
+    print(Text.Bold + Text.Red + "Error: Missing required arguments. Use -Project and -User." + Text.Reset)
     helpMenu()
 
-# Ensure the project argument is a valid project
+# Ensure the project is valid 
 if project not in validProjects:
     print(Text.Bold + Text.Red + f"Error: {project} is not a valid project.\n" + Text.Reset)
     helpMenu()
@@ -98,7 +98,7 @@ data = {'project_id': projectId, 'st': user}
 # Perform a POST request to fetch the response
 response = requests.post(searchUrl, data=data)
 
-if response:  # If we received a response
+if response:  # Proceed if we received a response
     soup = BeautifulSoup(response.text, 'lxml')  # Load the response into BeautifulSoup
 
     summary = soup.find('td', class_='htitle').text.lstrip()  # Find summary
