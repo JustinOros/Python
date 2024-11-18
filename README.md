@@ -12,5 +12,10 @@ python3 powerball.py [-List|-L]
 ### dnet-stats.py
 `A command-line interface to stats.distributed.net`
 ```
-python3 dnet-stats.py -Project <project> -User <user>
+python3 dnet-stats.py -p <project> -u <user>
+```
+### ua-pay.py
+`A command-line interface to openpayrolls.com for UofA payroll.`
+```
+python3 ua-pay.py -fn <first_name> -ln <last_name>
 ```
