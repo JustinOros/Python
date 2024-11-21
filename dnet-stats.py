@@ -6,9 +6,7 @@
 # Dependencies: pip install requests argparse beautifulsoup4 lxml
 
 from bs4 import BeautifulSoup
-import requests
-import argparse
-import sys
+import requests, argparse, sys
 
 # Distributed.net Participant Search Form
 searchUrl = 'https://stats.distributed.net/participant/psearch.php'
@@ -57,14 +55,14 @@ def main():
 
         summary = soup.find('td', class_='htitle').text.lstrip()  # Find summary
 
-        if "Summary" in summary:
+        if 'Summary' in summary:
             print(f'\nUser: {user}')  # Print user
-            summary = " ".join(summary.split())  # Remove extra spaces from summary
+            summary = ' '.join(summary.split())  # Remove extra spaces from summary
             summary = summary.split('/')  # Split summary and project into 2 strings
             project_name = summary[0]  # Store the project name from the summary into a variable
             print(f'Project: {project_name}')  # Print project
         else:
-            print(f"\nError: {user} not found for project {project}.\n")  # Notify if user not found
+            print(f'\nError: {user} not found for project {project}.\n')  # Notify if user not found
             sys.exit()
 
         line = 0
@@ -72,23 +70,33 @@ def main():
             line += 1
             if line == 1:  # Get overall rank
                 overallRank = match.text.lstrip()
-                if overallRank[0] != "T" and overallRank[0] != "0":
+                if overallRank[0] != 'T' and overallRank[0] != '0':
                     overallRank = overallRank.split('(')
                     overallRank = overallRank[0]
             if line == 2:  # Get current rank
                 currentRank = match.text.lstrip()
-                if currentRank[0] != "0":
+                if currentRank[0] != '0':
                     currentRank = currentRank.split('(')
                     currentRank = currentRank[0]
             if line == 3:  # Print current and overall rank
+                currentRank = f'{int(currentRank):,}'
                 print(f'Rank: {currentRank}')
+                overallRank = f'{int(overallRank):,}'
                 print(f'Overall: {overallRank}')
                 break
 
-        # Get last update date
-        lastUpdate = soup.find('td', class_="lastupdate").text.split()
+        # Grab the date an update to rank was posted
+        lastUpdate = soup.find('td', class_='lastupdate').text.split()
         lastUpdate = lastUpdate[8].lstrip()
-        print(f'Updated: {lastUpdate}\n')
+
+        # Format the date
+        Year = lastUpdate[7:12]
+        Month = lastUpdate[3:6]
+        Day = lastUpdate[0:2]
+
+        formattedDate = f'{Month} {Day}, {Year}'
+
+        print(f'Updated: {formattedDate}\n')
 
     else:
         print('An error has occurred while fetching data.')
