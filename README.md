@@ -9,7 +9,7 @@ pip3 install -r requirements.txt
 python3 powerball.py [-List|-L]
 ```
     
-### dnet-stats.py
+### dnet-user-stats.py
 `A command-line interface to stats.distributed.net`
 ```
 python3 dnet-stats.py -p <project> -u <user>
