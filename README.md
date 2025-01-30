@@ -19,8 +19,8 @@ python3 dnet-stats.py -p <project> -u <user>
 ```
 python3 ua-pay.py -fn <first_name> -ln <last_name>
 ```
-### iso2usb-macos.py
+### iso2usb-mac.py
 `Easily write ISO images to USB sticks on macOS.`
 ```
-python3 iso2usb-macos.py
+python3 iso2usb-mac.py
 ```
