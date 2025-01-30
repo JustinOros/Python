@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Description: An easy CLI interface for writing ISOs to USB sticks on macOS.
+# Description: Easily write ISOs images to USB sticks on macOS via CLI.
 # Usage: python3 iso2usb-mac.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
