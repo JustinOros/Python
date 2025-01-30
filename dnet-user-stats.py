@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Description: A command-line interface to https://stats.distributed.net 
-# Usage: python3 dnet-stats.py -p <project> -u <username>
+# Usage: python3 dnet-user-stats.py -p <project> -u <username>
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 # Dependencies: pip install requests argparse beautifulsoup4 lxml
