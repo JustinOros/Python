@@ -26,3 +26,8 @@ python3 ua-pay.py -fn <first_name> -ln <last_name>
 ```
 python3 iso2usb-mac.py
 ```
+### text2watermark.py
+`Convert text to watermark (PNG).`
+```
+python3 text2watermark.py <text>
+```
