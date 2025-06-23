@@ -31,3 +31,8 @@ python3 iso2usb-mac.py
 ```
 python3 text2watermark.py <text>
 ```
+### ham-test.py
+`A command-line HAM Operator Test preparation tool.`
+```
+python3 ham-test.py
+```
