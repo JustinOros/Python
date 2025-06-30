@@ -36,3 +36,8 @@ python3 text2watermark.py <text>
 ```
 python3 ham-test-cli.py
 ```
+### ham-test-gui.py
+`A Python-GUI HAM Operator Test preparation tool.`
+```
+python3 ham-test-gui.py
+```
