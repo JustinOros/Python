@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Description: A Python-GUI interface for the HAM Operator Test. 
-# Usage: python3 ham-test-cli.py
+# Usage: python3 ham-test-gui.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
