@@ -9,7 +9,11 @@ import json
 import os
 import random
 import requests
+import logging
 from datetime import datetime
+
+# Set up logging
+logging.basicConfig(level=logging.WARNING, format='[%(levelname)s] %(message)s')
 
 # URLs to download the latest official HAM exam question pools from GitHub
 URLS = {
@@ -34,7 +38,7 @@ def get_remote_last_modified(url):
             dt = datetime.strptime(lm, '%a, %d %b %Y %H:%M:%S %Z')
             return dt.timestamp()
     except Exception as e:
-        print(f"Warning: Could not get Last-Modified for {url}: {e}")
+        logging.warning(f"Could not get Last-Modified for {url}: {e}")
     return None
 
 # Download the file from GitHub and save it locally
@@ -66,6 +70,7 @@ def sync_files():
                 print(f"Skipping update for {test_name} (no remote timestamp).")
         else:
             if not is_local_file_up_to_date(local_path, remote_ts):
+                print(f"{local_path} is outdated, updating it.")
                 download_file(url, local_path)
             else:
                 print(f"{local_path} is up to date.")
@@ -80,16 +85,22 @@ def load_questions(test_name):
         return json.load(f)
 
 # Prompt the user to select one of the 3 test pools
-def select_test():
+def select_test(attempts=3):
+    # Prompt user to select an exam type
     print("Select the test you want to take:")
     for idx, name in enumerate(URLS.keys(), start=1):
         print(f"{idx}. {name} Class")
-    choice = input("Enter number: ").strip()
-    try:
-        return list(URLS.keys())[int(choice) - 1]
-    except (ValueError, IndexError):
-        print("Invalid choice. Try again.\n")
-        return select_test()
+    
+    while attempts > 0:
+        choice = input("Enter number: ").strip()
+        try:
+            return list(URLS.keys())[int(choice) - 1]
+        except (ValueError, IndexError):
+            attempts -= 1
+            print(f"Invalid choice. You have {attempts} attempts left.\n")
+    
+    print("Too many invalid attempts. Exiting.")
+    exit(1)
 
 # Core quiz loop: presents questions, checks answers, tracks score
 def run_quiz(questions):
@@ -106,13 +117,27 @@ def run_quiz(questions):
         # Skip if the structure is invalid
         if not question_text or not answers or correct_index is None:
             continue
+        if correct_index < 0 or correct_index >= len(answers):
+            logging.warning(f"Skipping question with invalid correct index: {question_text}")
+            continue
 
-        # Assign A, B, C, D... letters to each answer option
-        letter_map = {chr(65 + i): ans for i, ans in enumerate(answers)}
+        # Pair each answer with whether it is correct
+        answer_options = [(i, ans, i == correct_index) for i, ans in enumerate(answers)]
+        random.shuffle(answer_options)  # Shuffle answer order
+
+        # Create a letter map from shuffled options
+        letter_map = {}
+        correct_letter = None
+        for idx, (orig_index, ans_text, is_correct) in enumerate(answer_options):
+            letter = chr(65 + idx)
+            letter_map[letter] = (orig_index, ans_text)
+            if is_correct:
+                correct_letter = letter
+                correct_answer = ans_text
 
         print(f"\n{question_text}")
-        for letter, ans in letter_map.items():
-            print(f"  {letter}. {ans}")
+        for letter in sorted(letter_map.keys()):
+            print(f"  {letter}. {letter_map[letter][1]}")
 
         # Get the user's answer
         while True:
@@ -122,22 +147,21 @@ def run_quiz(questions):
                 print(f"Final score: {score}/{total}")
                 return
             if user_input in letter_map:
-                selected_index = ord(user_input) - 65
                 break
             else:
                 print("Invalid input. Please enter A, B, C, D or Q.")
 
         # Score the answer
         total += 1
+        selected_index = letter_map[user_input][0]
         if selected_index == correct_index:
             print("✅ Correct!\n")
             score += 1
         else:
-            correct_letter = chr(65 + correct_index)
-            correct_answer = answers[correct_index]
             print(f"❌ Incorrect. The correct answer is {correct_letter}. {correct_answer}\n")
 
-    print(f"Test completed. Score: {score}/{total} ({(score/total)*100:.1f}%)")
+    percentage = (score / total) * 100 if total > 0 else 0
+    print(f"Test completed. Score: {score}/{total} ({percentage:.2f}%)")
 
 # Main program flow
 def main():
@@ -152,4 +176,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
