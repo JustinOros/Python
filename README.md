@@ -1,10 +1,3 @@
-## These Python scripts have been designed for Linux and/or macOS.
-
-### Requirements 
-```
-pip3 install -r requirements.txt
-```
-
 ### powerball.py 
 `A command-line interface to powerball.com`
 ```
