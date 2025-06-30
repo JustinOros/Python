@@ -1,9 +1,8 @@
 #!/usr/bin/python3
 # Description: A command-line interface for the HAM Operator Test. 
-# Usage: python3 ham-test.py
+# Usage: python3 ham-test-cli.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
-# Dependencies: pip install requests
 
 import json
 import os
@@ -87,19 +86,19 @@ def load_questions(test_name):
 # Prompt the user to select one of the 3 test pools
 def select_test(attempts=3):
     # Prompt user to select an exam type
-    print("Select the test you want to take:")
+    print("\nSelect the test you want to take:\n")
     for idx, name in enumerate(URLS.keys(), start=1):
         print(f"{idx}. {name} Class")
     
     while attempts > 0:
-        choice = input("Enter number: ").strip()
+        choice = input("\nEnter number: ").strip()
         try:
             return list(URLS.keys())[int(choice) - 1]
         except (ValueError, IndexError):
             attempts -= 1
-            print(f"Invalid choice. You have {attempts} attempts left.\n")
+            print(f"\nInvalid choice. You have {attempts} attempts left.\n")
     
-    print("Too many invalid attempts. Exiting.")
+    print("\nToo many invalid attempts. Exiting.")
     exit(1)
 
 # Core quiz loop: presents questions, checks answers, tracks score
@@ -135,30 +134,30 @@ def run_quiz(questions):
                 correct_letter = letter
                 correct_answer = ans_text
 
-        print(f"\n{question_text}")
+        print(f"\n{question_text}\n")
         for letter in sorted(letter_map.keys()):
             print(f"  {letter}. {letter_map[letter][1]}")
 
         # Get the user's answer
         while True:
-            user_input = input("Your answer (A/B/C/D or Q to quit): ").strip().upper()
+            user_input = input("\nYour answer (A/B/C/D or Q to quit): ").strip().upper()
             if user_input == 'Q':
-                print("Exiting test.")
-                print(f"Final score: {score}/{total}")
+                print("\nExiting test.")
+                print(f"\nFinal score: {score}/{total}")
                 return
             if user_input in letter_map:
                 break
             else:
-                print("Invalid input. Please enter A, B, C, D or Q.")
+                print("\nInvalid input. Please enter A, B, C, D or Q.")
 
         # Score the answer
         total += 1
         selected_index = letter_map[user_input][0]
         if selected_index == correct_index:
-            print("✅ Correct!\n")
+            print("\n✅ Correct!\n")
             score += 1
         else:
-            print(f"❌ Incorrect. The correct answer is {correct_letter}. {correct_answer}\n")
+            print(f"\n❌ Incorrect. The correct answer is {correct_letter}. {correct_answer}\n")
 
     percentage = (score / total) * 100 if total > 0 else 0
     print(f"Test completed. Score: {score}/{total} ({percentage:.2f}%)")
