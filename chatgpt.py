@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Description: A command-line interface to https://chat.openai.com/chat 
+# Description: A command-line interface to chat.openai.com.
 # Usage: python3 chatgpt.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
