@@ -1,9 +1,3 @@
-#!/usr/bin/python3
-# Description: A command-line interface to https://chat.openai.com/chat 
-# Usage: python3 chatgpt.py
-# Author: Justin Oros
-# Source: https://github.com/JustinOros
-
 import openai
 import os
 import sys
@@ -16,15 +10,12 @@ import readline
 colorama.init()
 
 def get_api_key():
+    # Check if API key is already set in the current environment
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key:
         return api_key
 
-    print("OpenAI API key not found.")
-    print("Please paste your OpenAI API key below.")
-    print("If you don't have one, you can create it here: https://platform.openai.com/account/api-keys")
-    api_key = input("Enter your API key: ").strip()
-
+    # If the key isn't found, check if it's in the .zshrc or .bashrc file
     shell = os.getenv("SHELL", "")
     shell_config = None
 
@@ -34,8 +25,21 @@ def get_api_key():
         shell_config = Path.home() / ".bashrc"
     else:
         print("Unknown shell; please manually add the following to your shell config:")
-        print(f'export OPENAI_API_KEY="{api_key}"')
-        return api_key
+        print(f'export OPENAI_API_KEY="your-api-key"')
+        return None
+
+    if shell_config.exists():
+        content = shell_config.read_text()
+        if "OPENAI_API_KEY" in content:
+            print(f"API key found in {shell_config}, but it may not be loaded into your current session.")
+            print("Please restart your terminal session or manually run `source ~/.zshrc` or `source ~/.bashrc`.")
+            return None
+
+    # If not found, prompt the user for an API key
+    print("OpenAI API key not found.")
+    print("Please paste your OpenAI API key below.")
+    print("If you don't have one, you can create it here: https://platform.openai.com/account/api-keys")
+    api_key = input("Enter your API key: ").strip()
 
     export_line = f'\nexport OPENAI_API_KEY="{api_key}"\n'
     try:
@@ -59,7 +63,7 @@ def show_help():
 Available Commands:
 
 - 'new'       : Start a new conversation (clear the chat history).
-- 'exit', 'quit', 'bye' : End the conversation and exit the script.
+- 'bye'       : End the conversation and exit the script.
 - 'help'      : Show this help message with a list of commands.
 - 'model'     : Show the current model or available models.
 - 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
@@ -76,13 +80,10 @@ def print_imessage(sender, text, is_user=False):
     wrapper = textwrap.TextWrapper(width=max_bubble_width)
     lines = wrapper.wrap(text.strip())
 
-    color = "\033[44m" if is_user else "\033[100m"  # Blue for user, Gray for ChatGPT
+    color = "\033[44m" if is_user else "\033[100m"
     reset = "\033[0m"
     top = f"{color}╭{'─' * (max_bubble_width + 2)}╮{reset}"
     bottom = f"{color}╰{'─' * (max_bubble_width + 2)}╯{reset}"
-
-    # Sender label removed per request
-    # print(" " * indent + f"{sender}:")
 
     print(" " * indent + top)
     for line in lines:
@@ -217,5 +218,6 @@ def chat_with_gpt():
 
 if __name__ == "__main__":
     openai.api_key = get_api_key()
-    chat_with_gpt()
+    if openai.api_key:
+        chat_with_gpt()
 
