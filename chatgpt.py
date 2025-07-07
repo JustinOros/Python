@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Description: A command-line interface to https://chat.openai.com.
+# Description: A command-line interface to https://chat.openai.com/chat 
 # Usage: python3 chatgpt.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
@@ -33,44 +33,40 @@ def show_help():
     - 'help'      : Show this help message with a list of commands.
     - 'model'     : Show the current model or available models.
     - 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
+    - 'output'    : Save the last ChatGPT response to a file (e.g., chatgpt-output.py).
     """
     print(help_text)
 
 def chat_with_gpt():
-    # Default model
     current_model = "gpt-3.5-turbo"
-    
+    available_models = ["gpt-3.5-turbo", "gpt-4"]
+    last_response = ""  # Store the last assistant reply
+
     print(f"ChatGPT: Hello. You are currently using the '{current_model}' model.")
     print("Type 'help' for a list of internal commands.")
 
-    # A basic conversation loop
-    conversation_history = []  # Store conversation to maintain context
+    conversation_history = []
 
     while True:
-        # Get input from the user
         user_input = input("User: ")
 
-        # Show help message
         if user_input.lower() == "help":
             show_help()
             continue
 
-        # Check if the user wants to start a new conversation
         if user_input.lower() == "new":
             print("ChatGPT: Starting a new conversation...")
-            conversation_history = []  # Reset the conversation history
+            conversation_history = []
+            last_response = ""
             print(f"ChatGPT: Hello. You are using the '{current_model}' model. How can I help you today?")
             continue
 
-        # Check if the user wants to exit the conversation
         if user_input.lower() in ["exit", "quit", "bye"]:
             print("ChatGPT: Goodbye!")
             break
 
-        # Check if the user wants to change the model
         if user_input.lower().startswith("model="):
             model_name = user_input.split("=")[1].strip()
-
             if model_name in available_models:
                 current_model = model_name
                 print(f"ChatGPT: Switched to the '{current_model}' model.")
@@ -78,37 +74,61 @@ def chat_with_gpt():
                 print(f"ChatGPT: '{model_name}' is not a valid model. Available models are: {', '.join(available_models)}.")
             continue
 
-        # Check if the user wants to see the current model or available models
         if user_input.lower() == "model":
             print(f"ChatGPT: You are currently using the '{current_model}' model.")
             print(f"Available models: {', '.join(available_models)}.")
             continue
 
-        # Add user input to conversation history
+        if user_input.lower() == "output":
+            if not last_response:
+                print("ChatGPT: No response available to save.")
+                continue
+
+            # Basic extension detection
+            if "```python" in last_response:
+                ext = "py"
+            elif "```html" in last_response:
+                ext = "html"
+            elif "```json" in last_response:
+                ext = "json"
+            elif "```bash" in last_response:
+                ext = "sh"
+            else:
+                ext = "txt"
+
+            filename = f"chatgpt-output.{ext}"
+            try:
+                # Strip Markdown formatting if present
+                content = last_response
+                if "```" in content:
+                    content = content.split("```")[1]
+                    if "\n" in content:
+                        content = "\n".join(content.split("\n")[1:])  # remove language label line
+                    content = content.strip("`").strip()
+
+                with open(filename, "w") as f:
+                    f.write(content)
+                print(f"ChatGPT: Output saved to '{filename}'")
+            except Exception as e:
+                print(f"ChatGPT: Failed to save output: {e}")
+            continue
+
         conversation_history.append({"role": "user", "content": user_input})
 
         try:
-            # Call OpenAI's GPT model
             response = openai.ChatCompletion.create(
-                model=current_model,  # Use the current model
+                model=current_model,
                 messages=conversation_history,
                 max_tokens=150
             )
-
-            # Extract and print the response
             chatgpt_reply = response['choices'][0]['message']['content']
             print(f"ChatGPT: {chatgpt_reply}")
-
-            # Add ChatGPT's reply to the conversation history
+            last_response = chatgpt_reply
             conversation_history.append({"role": "assistant", "content": chatgpt_reply})
-
         except Exception as e:
             print(f"Error: {e}")
             break
 
 if __name__ == "__main__":
-    # First, ensure the OpenAI API key is available
     get_api_key()
-    # Start the chat
     chat_with_gpt()
-
