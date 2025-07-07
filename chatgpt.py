@@ -66,6 +66,7 @@ Available Commands:
 - 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
 - 'output'    : Save the last ChatGPT response to a file (auto-named).
 - 'output=<filename>' : Save the last ChatGPT response to the given filename.
+- 'attach=<filename>' : Attach a local file's contents and send it as part of the conversation.
 """
     print(help_text)
 
@@ -169,7 +170,6 @@ def chat_with_gpt():
             try:
                 content = last_response
                 if "```" in content:
-                    # Extract first code block content if present
                     parts = content.split("```")
                     if len(parts) >= 3:
                         content = parts[2].strip()
@@ -181,6 +181,21 @@ def chat_with_gpt():
                 print_imessage("ChatGPT", f"Output saved to '{filename}'", is_user=False)
             except Exception as e:
                 print_imessage("ChatGPT", f"Failed to save output: {e}", is_user=False)
+            continue
+
+        if user_input.lower().startswith("attach="):
+            filepath = user_input.split("=", 1)[1].strip()
+            if not os.path.isfile(filepath):
+                print_imessage("ChatGPT", f"File not found: {filepath}", is_user=False)
+                continue
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+                file_message = f"[Attached file: {os.path.basename(filepath)}]\n```\n{file_content}\n```"
+                conversation_history.append({"role": "user", "content": file_message})
+                print_imessage("ChatGPT", f"File '{os.path.basename(filepath)}' attached and sent.", is_user=False)
+            except Exception as e:
+                print_imessage("ChatGPT", f"Failed to read file '{filepath}': {e}", is_user=False)
             continue
 
         conversation_history.append({"role": "user", "content": user_input})
