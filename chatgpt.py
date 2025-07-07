@@ -7,7 +7,12 @@
 import openai
 import os
 import sys
+import shutil
+import textwrap
 from pathlib import Path
+import colorama
+
+colorama.init()
 
 def get_api_key():
     api_key = os.getenv("OPENAI_API_KEY")
@@ -15,13 +20,11 @@ def get_api_key():
     if api_key:
         return api_key
 
-    # Prompt user for input
     print("OpenAI API key not found.")
     print("Please paste your OpenAI API key below.")
     print("If you don't have one, you can create it here: https://platform.openai.com/account/api-keys")
     api_key = input("Enter your API key: ").strip()
 
-    # Save the key to shell config for next time
     shell = os.getenv("SHELL", "")
     shell_config = None
 
@@ -61,54 +64,75 @@ def show_help():
     """
     print(help_text)
 
+def print_imessage(sender, text, is_user=False):
+    cols = shutil.get_terminal_size().columns
+    max_bubble_width = min(60, cols - 10)
+    indent = cols - max_bubble_width - 6 if is_user else 2
+    wrapper = textwrap.TextWrapper(width=max_bubble_width)
+    lines = wrapper.wrap(text.strip())
+
+    # Bubble color
+    color = "\033[44m" if is_user else "\033[100m"  # Blue or Gray
+    reset = "\033[0m"
+
+    # Top and bottom border
+    top = f"{color}╭{'─' * (max_bubble_width + 2)}╮{reset}"
+    bottom = f"{color}╰{'─' * (max_bubble_width + 2)}╯{reset}"
+
+    print(" " * indent + f"{sender}:")
+    print(" " * indent + top)
+
+    for line in lines:
+        pad = " " * (max_bubble_width - len(line))
+        print(" " * indent + f"{color}│ {line}{pad} │{reset}")
+
+    print(" " * indent + bottom + "\n")
+
 def chat_with_gpt():
     current_model = "gpt-3.5-turbo"
     available_models = ["gpt-3.5-turbo", "gpt-4"]
     last_response = ""
 
-    print(f"ChatGPT: Hello. You are currently using the '{current_model}' model.")
-    print("Type 'help' for a list of internal commands.")
+    print_imessage("ChatGPT", f"Hello. You are currently using the '{current_model}' model.\nType 'help' for a list of internal commands.", is_user=False)
 
     conversation_history = []
 
     while True:
-        user_input = input("User: ")
+        user_input = input("You: ").strip()
+        print_imessage("You", user_input, is_user=True)
 
         if user_input.lower() == "help":
             show_help()
             continue
 
         if user_input.lower() == "new":
-            print("ChatGPT: Starting a new conversation...")
+            print_imessage("ChatGPT", f"Starting a new conversation...\nHello. You are using the '{current_model}' model. How can I help you today?", is_user=False)
             conversation_history = []
             last_response = ""
-            print(f"ChatGPT: Hello. You are using the '{current_model}' model. How can I help you today?")
             continue
 
         if user_input.lower() in ["exit", "quit", "bye"]:
-            print("ChatGPT: Goodbye!")
+            print_imessage("ChatGPT", "Goodbye!", is_user=False)
             break
 
         if user_input.lower().startswith("model="):
             model_name = user_input.split("=", 1)[1].strip()
             if model_name in available_models:
                 current_model = model_name
-                print(f"ChatGPT: Switched to the '{current_model}' model.")
+                print_imessage("ChatGPT", f"Switched to the '{current_model}' model.", is_user=False)
             else:
-                print(f"ChatGPT: '{model_name}' is not a valid model. Available models are: {', '.join(available_models)}.")
+                print_imessage("ChatGPT", f"'{model_name}' is not a valid model. Available models: {', '.join(available_models)}.", is_user=False)
             continue
 
         if user_input.lower() == "model":
-            print(f"ChatGPT: You are currently using the '{current_model}' model.")
-            print(f"Available models: {', '.join(available_models)}.")
+            print_imessage("ChatGPT", f"You are currently using the '{current_model}' model.\nAvailable models: {', '.join(available_models)}.", is_user=False)
             continue
 
         if user_input.lower().startswith("output"):
             if not last_response:
-                print("ChatGPT: No response available to save.")
+                print_imessage("ChatGPT", "No response available to save.", is_user=False)
                 continue
 
-            # Determine extension based on code block
             def get_extension(content):
                 if "```python" in content:
                     return "py"
@@ -121,7 +145,6 @@ def chat_with_gpt():
                 else:
                     return "txt"
 
-            # Parse optional filename
             if "=" in user_input:
                 filename = user_input.split("=", 1)[1].strip()
                 if "." not in filename:
@@ -134,7 +157,6 @@ def chat_with_gpt():
             try:
                 content = last_response
                 if "```" in content:
-                    # Extract only the content within the triple backticks
                     content = content.split("```")[1]
                     if "\n" in content:
                         content = "\n".join(content.split("\n")[1:])
@@ -142,9 +164,9 @@ def chat_with_gpt():
 
                 with open(filename, "w") as f:
                     f.write(content)
-                print(f"ChatGPT: Output saved to '{filename}'")
+                print_imessage("ChatGPT", f"Output saved to '{filename}'", is_user=False)
             except Exception as e:
-                print(f"ChatGPT: Failed to save output: {e}")
+                print_imessage("ChatGPT", f"Failed to save output: {e}", is_user=False)
             continue
 
         conversation_history.append({"role": "user", "content": user_input})
@@ -156,11 +178,11 @@ def chat_with_gpt():
                 max_tokens=150
             )
             chatgpt_reply = response['choices'][0]['message']['content']
-            print(f"ChatGPT: {chatgpt_reply}")
+            print_imessage("ChatGPT", chatgpt_reply, is_user=False)
             last_response = chatgpt_reply
             conversation_history.append({"role": "assistant", "content": chatgpt_reply})
         except Exception as e:
-            print(f"Error: {e}")
+            print_imessage("ChatGPT", f"Error: {e}", is_user=False)
             break
 
 if __name__ == "__main__":
