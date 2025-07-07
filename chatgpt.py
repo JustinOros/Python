@@ -39,7 +39,6 @@ def get_api_key():
 
     export_line = f'\nexport OPENAI_API_KEY="{api_key}"\n'
     try:
-        # Check if the key already exists in shell config
         if shell_config.exists():
             content = shell_config.read_text()
             if api_key in content:
@@ -82,7 +81,9 @@ def print_imessage(sender, text, is_user=False):
     top = f"{color}╭{'─' * (max_bubble_width + 2)}╮{reset}"
     bottom = f"{color}╰{'─' * (max_bubble_width + 2)}╯{reset}"
 
-    print(" " * indent + f"{sender}:")
+    # Sender label removed per request
+    # print(" " * indent + f"{sender}:")
+
     print(" " * indent + top)
     for line in lines:
         pad = " " * (max_bubble_width - len(line))
