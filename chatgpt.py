@@ -6,21 +6,46 @@
 
 import openai
 import os
+import sys
+from pathlib import Path
 
-# Function to get the OpenAI API key
 def get_api_key():
-    # Check if API key is set in environment variables
     api_key = os.getenv("OPENAI_API_KEY")
-    
-    if not api_key:
-        # If API key is not in environment variables, prompt the user to enter it
-        print("OpenAI API key not found.")
-        print("Please paste your OpenAI API key below.")
-        print("If you don't have one, you can create it here: https://platform.openai.com/account/api-keys")
-        api_key = input("Enter your API key: ").strip()
 
-    # Set the OpenAI API key
-    openai.api_key = api_key
+    if api_key:
+        return api_key
+
+    # Prompt user for input
+    print("OpenAI API key not found.")
+    print("Please paste your OpenAI API key below.")
+    print("If you don't have one, you can create it here: https://platform.openai.com/account/api-keys")
+    api_key = input("Enter your API key: ").strip()
+
+    # Save the key to shell config for next time
+    shell = os.getenv("SHELL", "")
+    shell_config = None
+
+    if "zsh" in shell:
+        shell_config = Path.home() / ".zshrc"
+    elif "bash" in shell:
+        shell_config = Path.home() / ".bashrc"
+    else:
+        print("Unknown shell; please manually add the following to your shell config:")
+        print(f'export OPENAI_API_KEY="{api_key}"')
+        return api_key
+
+    export_line = f'\nexport OPENAI_API_KEY="{api_key}"\n'
+
+    try:
+        with open(shell_config, "a") as f:
+            f.write(export_line)
+        print(f"✅ API key saved to {shell_config}. It will be available next time you launch the terminal.")
+    except Exception as e:
+        print(f"⚠️ Failed to save API key to {shell_config}: {e}")
+        print("You can set it manually by adding:")
+        print(f'export OPENAI_API_KEY="{api_key}"')
+
+    return api_key
 
 def show_help():
     help_text = """
@@ -40,7 +65,7 @@ def show_help():
 def chat_with_gpt():
     current_model = "gpt-3.5-turbo"
     available_models = ["gpt-3.5-turbo", "gpt-4"]
-    last_response = ""  # Store the last assistant reply
+    last_response = ""
 
     print(f"ChatGPT: Hello. You are currently using the '{current_model}' model.")
     print("Type 'help' for a list of internal commands.")
@@ -84,7 +109,6 @@ def chat_with_gpt():
                 print("ChatGPT: No response available to save.")
                 continue
 
-            # Basic extension detection
             if "```python" in last_response:
                 ext = "py"
             elif "```html" in last_response:
@@ -98,12 +122,11 @@ def chat_with_gpt():
 
             filename = f"chatgpt-output.{ext}"
             try:
-                # Strip Markdown formatting if present
                 content = last_response
                 if "```" in content:
                     content = content.split("```")[1]
                     if "\n" in content:
-                        content = "\n".join(content.split("\n")[1:])  # remove language label line
+                        content = "\n".join(content.split("\n")[1:])
                     content = content.strip("`").strip()
 
                 with open(filename, "w") as f:
@@ -130,5 +153,5 @@ def chat_with_gpt():
             break
 
 if __name__ == "__main__":
-    get_api_key()
+    openai.api_key = get_api_key()
     chat_with_gpt()
