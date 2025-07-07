@@ -25,12 +25,12 @@ python3 iso2usb-mac.py
 python3 text2watermark.py <text>
 ```
 ### ham-test-cli.py
-`A command-line HAM Operator Test preparation tool.`
+`A command-line Amateur Radio Operator License test preparation tool.`
 ```
 python3 ham-test-cli.py
 ```
 ### ham-test-gui.py
-`A Python-GUI HAM Operator Test preparation tool.`
+`A Python-GUI Amateur Radio Operator License test preparation tool.`
 ```
 python3 ham-test-gui.py
 ```
