@@ -34,3 +34,8 @@ python3 ham-test-cli.py
 ```
 python3 ham-test-gui.py
 ```
+### chatgpt.py
+`A command-line interface to chat.openai.com`
+```
+python3 chatgpt.py
+```
