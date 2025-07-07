@@ -11,12 +11,12 @@ import shutil
 import textwrap
 from pathlib import Path
 import colorama
+import readline
 
 colorama.init()
 
 def get_api_key():
     api_key = os.getenv("OPENAI_API_KEY")
-
     if api_key:
         return api_key
 
@@ -38,8 +38,13 @@ def get_api_key():
         return api_key
 
     export_line = f'\nexport OPENAI_API_KEY="{api_key}"\n'
-
     try:
+        # Check if the key already exists in shell config
+        if shell_config.exists():
+            content = shell_config.read_text()
+            if api_key in content:
+                print(f"API key already present in {shell_config}.")
+                return api_key
         with open(shell_config, "a") as f:
             f.write(export_line)
         print(f"✅ API key saved to {shell_config}. It will be available next time you launch the terminal.")
@@ -52,16 +57,16 @@ def get_api_key():
 
 def show_help():
     help_text = """
-    Available Commands:
-    
-    - 'new'       : Start a new conversation (clear the chat history).
-    - 'exit', 'quit', 'bye' : End the conversation and exit the script.
-    - 'help'      : Show this help message with a list of commands.
-    - 'model'     : Show the current model or available models.
-    - 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
-    - 'output'    : Save the last ChatGPT response to a file (auto-named).
-    - 'output=<filename>' : Save the last ChatGPT response to the given filename.
-    """
+Available Commands:
+
+- 'new'       : Start a new conversation (clear the chat history).
+- 'exit', 'quit', 'bye' : End the conversation and exit the script.
+- 'help'      : Show this help message with a list of commands.
+- 'model'     : Show the current model or available models.
+- 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
+- 'output'    : Save the last ChatGPT response to a file (auto-named).
+- 'output=<filename>' : Save the last ChatGPT response to the given filename.
+"""
     print(help_text)
 
 def print_imessage(sender, text, is_user=False):
@@ -71,22 +76,26 @@ def print_imessage(sender, text, is_user=False):
     wrapper = textwrap.TextWrapper(width=max_bubble_width)
     lines = wrapper.wrap(text.strip())
 
-    # Bubble color
-    color = "\033[44m" if is_user else "\033[100m"  # Blue or Gray
+    color = "\033[44m" if is_user else "\033[100m"  # Blue for user, Gray for ChatGPT
     reset = "\033[0m"
-
-    # Top and bottom border
     top = f"{color}╭{'─' * (max_bubble_width + 2)}╮{reset}"
     bottom = f"{color}╰{'─' * (max_bubble_width + 2)}╯{reset}"
 
     print(" " * indent + f"{sender}:")
     print(" " * indent + top)
-
     for line in lines:
         pad = " " * (max_bubble_width - len(line))
         print(" " * indent + f"{color}│ {line}{pad} │{reset}")
-
     print(" " * indent + bottom + "\n")
+
+def read_input_silently(prompt="You: "):
+    try:
+        print(prompt, end="", flush=True)
+        user_input = input()
+        sys.stdout.write("\033[F\033[K")  # Move cursor up and clear line
+        return user_input.strip()
+    except EOFError:
+        return ""
 
 def chat_with_gpt():
     current_model = "gpt-3.5-turbo"
@@ -98,7 +107,10 @@ def chat_with_gpt():
     conversation_history = []
 
     while True:
-        user_input = input("You: ").strip()
+        user_input = read_input_silently()
+        if not user_input:
+            continue
+
         print_imessage("You", user_input, is_user=True)
 
         if user_input.lower() == "help":
@@ -157,10 +169,12 @@ def chat_with_gpt():
             try:
                 content = last_response
                 if "```" in content:
-                    content = content.split("```")[1]
-                    if "\n" in content:
-                        content = "\n".join(content.split("\n")[1:])
-                    content = content.strip("`").strip()
+                    # Extract first code block content if present
+                    parts = content.split("```")
+                    if len(parts) >= 3:
+                        content = parts[2].strip()
+                    else:
+                        content = content.strip("`").strip()
 
                 with open(filename, "w") as f:
                     f.write(content)
