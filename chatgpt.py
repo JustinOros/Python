@@ -52,13 +52,12 @@ def show_help():
     Available Commands:
     
     - 'new'       : Start a new conversation (clear the chat history).
-    - 'exit'      : End the conversation and exit the script.
-    - 'quit'      : Same as 'exit', ends the conversation.
-    - 'bye'       : Same as 'exit', ends the conversation.
+    - 'exit', 'quit', 'bye' : End the conversation and exit the script.
     - 'help'      : Show this help message with a list of commands.
     - 'model'     : Show the current model or available models.
     - 'model=<model_name>' : Switch to the specified model (e.g., 'model=gpt-4').
-    - 'output'    : Save the last ChatGPT response to a file (e.g., chatgpt-output.py).
+    - 'output'    : Save the last ChatGPT response to a file (auto-named).
+    - 'output=<filename>' : Save the last ChatGPT response to the given filename.
     """
     print(help_text)
 
@@ -91,7 +90,7 @@ def chat_with_gpt():
             break
 
         if user_input.lower().startswith("model="):
-            model_name = user_input.split("=")[1].strip()
+            model_name = user_input.split("=", 1)[1].strip()
             if model_name in available_models:
                 current_model = model_name
                 print(f"ChatGPT: Switched to the '{current_model}' model.")
@@ -104,26 +103,38 @@ def chat_with_gpt():
             print(f"Available models: {', '.join(available_models)}.")
             continue
 
-        if user_input.lower() == "output":
+        if user_input.lower().startswith("output"):
             if not last_response:
                 print("ChatGPT: No response available to save.")
                 continue
 
-            if "```python" in last_response:
-                ext = "py"
-            elif "```html" in last_response:
-                ext = "html"
-            elif "```json" in last_response:
-                ext = "json"
-            elif "```bash" in last_response:
-                ext = "sh"
-            else:
-                ext = "txt"
+            # Determine extension based on code block
+            def get_extension(content):
+                if "```python" in content:
+                    return "py"
+                elif "```html" in content:
+                    return "html"
+                elif "```json" in content:
+                    return "json"
+                elif "```bash" in content:
+                    return "sh"
+                else:
+                    return "txt"
 
-            filename = f"chatgpt-output.{ext}"
+            # Parse optional filename
+            if "=" in user_input:
+                filename = user_input.split("=", 1)[1].strip()
+                if "." not in filename:
+                    ext = get_extension(last_response)
+                    filename = f"{filename}.{ext}"
+            else:
+                ext = get_extension(last_response)
+                filename = f"chatgpt-output.{ext}"
+
             try:
                 content = last_response
                 if "```" in content:
+                    # Extract only the content within the triple backticks
                     content = content.split("```")[1]
                     if "\n" in content:
                         content = "\n".join(content.split("\n")[1:])
@@ -155,3 +166,4 @@ def chat_with_gpt():
 if __name__ == "__main__":
     openai.api_key = get_api_key()
     chat_with_gpt()
+
