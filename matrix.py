@@ -4,106 +4,180 @@
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
+#!/usr/bin/env python3
+
 import curses
 import random
 import time
 import argparse
+import sys
 
-# Main function that runs the Matrix screensaver
-def matrix_rain(stdscr, color_pair):
-    # Hide the cursor
-    curses.curs_set(0)
-    # Start color support and use default colors
-    curses.start_color()
-    curses.use_default_colors()
+# Available colors (excluding black and white for regular text)
+COLOR_NAMES = ['red', 'green', 'yellow', 'blue', 'purple', 'cyan']
+COLOR_OPTIONS = COLOR_NAMES + ['rgb']  # 'rgb' cycles through colors every 5 seconds
 
-    # Initialize color pair for the text (foreground) color
-    curses.init_pair(1, color_pair, -1)  # Text color, background color (default black)
+# Mapping from color names to curses color constants
+COLOR_MAP = {
+    'black': curses.COLOR_BLACK,
+    'red': curses.COLOR_RED,
+    'green': curses.COLOR_GREEN,
+    'yellow': curses.COLOR_YELLOW,
+    'blue': curses.COLOR_BLUE,
+    'purple': curses.COLOR_MAGENTA,
+    'cyan': curses.COLOR_CYAN,
+    'white': curses.COLOR_WHITE,
+}
 
-    # String of characters to simulate the "Matrix" rain effect
+def matrix_rain(stdscr, color_mode, timeout=None):
+    # Initialize curses settings
+    curses.curs_set(0)  # Hide the cursor
+    curses.start_color()  # Enable color functionality
+    curses.use_default_colors()  # Use default terminal background
+
+    # Initialize color pairs for each available color
+    for i, name in enumerate(COLOR_NAMES):
+        curses.init_pair(i + 1, COLOR_MAP[name], -1)  # Foreground color, default background
+
+    # Initialize variables for color cycling (for 'rgb' mode)
+    color_index = 0
+    current_color = COLOR_NAMES[color_index]
+    next_color = current_color
+    last_color_change = time.time()
+
+    # Characters used in the Matrix rain effect (mix of ascii and Greek symbols)
     chars = (
-        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%^&*()[]{}|;:,.<>?/~!_`'\"\\±§€£¥∑πΩΔ∫ƒ"
-        "αβγδεζηθικλμνξοπρστυφχψω«»≠∞≡∧∨⊕∈∩∪≈αβγπ"
-        "ϲπΔΘΩ≺⊂⊆≿⊤⊥⊢∝⇔⇒⇑⇓↔↕⊗⊙⊢⊣"
-        "αβγδεζηθικλμνξοπρστυφχψω«»≠∞≡∧∨⊕∈∩∪≈αβγπ"
-        "ϲπΔΘΩ≺⊂⊆≿⊤⊥⊢∝⇔⇒⇑⇓↔↕⊗⊙⊢⊣"
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+        "@#$%^&*()[]{}|;:,.<>?/~!_`'\"\\"
+        "αβγδεζηθικλμνξοπρστυφχψω∑πΩΔ∫ƒ∞≡∧∨⊕⊗⊙"
     )
 
-    # List to store the current position of each falling character column
-    columns = []
+    # Signature string that appears as an easter egg every 30 seconds
+    signature = "Justin Oros"
+    signature_columns = {}  # Tracks column and starting Y-position of signature
+    signature_visible = False
+    signature_visible_until = 0
+    last_signature_time = time.time()
 
-    # Infinite loop to keep the screensaver running
-    while True:
-        # Get the current screen size (height and width)
-        sh, sw = stdscr.getmaxyx()
+    start_time = time.time()
+    columns = []  # Y positions of falling characters for each column
+    column_speeds = []  # Speed at which each column falls (some variation)
+    column_colors = []  # Color of each column (for 'rgb' cycling)
 
-        # If the terminal size changes, update the columns list
-        if len(columns) != sw:
-            columns = [random.randint(0, sh - 1) for _ in range(sw)]
+    try:
+        while True:
+            now = time.time()
+            if timeout and (now - start_time) > timeout:
+                break  # Exit if timeout reached
 
-        # Clear the screen before drawing the next frame
-        stdscr.erase()
+            sh, sw = stdscr.getmaxyx()  # Get screen height and width
 
-        # Loop over each column in the terminal window
-        for i in range(sw):
-            # Create a string of 30 random characters for the falling text
-            char_string = ''.join(random.choice(chars) for _ in range(30))
-            x = i  # X position for the current column
-            y = columns[i]  # Y position for the current column
+            # Initialize columns if screen width changes
+            if len(columns) != sw:
+                columns = [random.randint(0, sh - 1) for _ in range(sw)]
+                column_speeds = [random.choice([1, 1, 2]) for _ in range(sw)]  # Mostly speed 1, sometimes 2
+                column_colors = [current_color] * sw
 
-            # Loop through each character in the string and apply fade effect
-            for j in range(0, 30):  # Limit to 30 layers of fade
-                fade_y = (y - j) % sh  # Loop the y position within screen bounds
-                if fade_y < 0: continue  # Skip if outside the screen
+            # Handle color cycling for 'rgb' mode every 5 seconds
+            if color_mode == 'rgb' and (now - last_color_change >= 5):
+                color_index = (color_index + 1) % len(COLOR_NAMES)
+                next_color = COLOR_NAMES[color_index]
+                last_color_change = now
 
-                # Brightness effect: top characters are bright, others fade out
-                brightness = max(0, 30 - j)
-                smooth_brightness = int(30 * (1 - (j / 30)))  # Linear fade
+            # Gradually switch column colors in 'rgb' mode with some randomness
+            if color_mode == 'rgb':
+                for i in range(sw):
+                    if column_colors[i] != next_color and random.random() < 0.03:
+                        column_colors[i] = next_color
+            elif color_mode in COLOR_NAMES:
+                column_colors = [color_mode] * sw
 
-                # Only draw characters that are within the screen bounds
-                if 0 <= fade_y < sh and 0 <= x < sw:
-                    try:
-                        # Add the character at position (fade_y, x) with a fade effect
-                        stdscr.addstr(fade_y, x, char_string[j], curses.color_pair(1) | curses.A_DIM * smooth_brightness)
-                    except curses.error:
-                        pass  # If the drawing position is out of bounds, just skip it
+            # Show signature every 30 seconds for 5 seconds
+            if not signature_visible and (now - last_signature_time >= 30):
+                signature_columns.clear()
+                col = random.randint(0, sw - len(signature))  # Random horizontal position
+                y_start = random.randint(5, max(6, sh - len(signature)))  # Random vertical position within bounds
+                signature_columns[col] = y_start
+                signature_visible = True
+                signature_visible_until = now + 5  # Display duration of 5 seconds
+                last_signature_time = now
 
-            # Update the position for the next frame (loop back to the top after reaching the bottom)
-            columns[i] = (columns[i] + 1) % sh
+            # Hide signature after display time ends
+            if signature_visible and now > signature_visible_until:
+                signature_visible = False
+                signature_columns.clear()
 
-        # Refresh the screen to show the changes
-        stdscr.refresh()
-        # Control the frame rate (how fast the text falls)
-        time.sleep(0.05)
+            stdscr.erase()  # Clear screen before drawing new frame
 
-# Map color name to curses color code
-def get_color_pair(color_name):
-    color_map = {
-        'black': curses.COLOR_BLACK,
-        'red': curses.COLOR_RED,
-        'green': curses.COLOR_GREEN,
-        'yellow': curses.COLOR_YELLOW,
-        'blue': curses.COLOR_BLUE,
-        'purple': curses.COLOR_MAGENTA,  # Map "purple" to magenta
-        'cyan': curses.COLOR_CYAN,
-        'white': curses.COLOR_WHITE,
-    }
+            for i in range(sw):
+                x = i
+                y = columns[i]
+                speed = column_speeds[i]
+                color_name = column_colors[i]
+                color_id = COLOR_NAMES.index(color_name) + 1
 
-    # Return the mapped color, default to green if invalid
-    return color_map.get(color_name.lower(), curses.COLOR_GREEN)
+                # Draw signature if visible in this column
+                if signature_visible and i in signature_columns:
+                    y_start = signature_columns[i]
+                    for j, ch in enumerate(signature):
+                        pos_y = (y_start + j) % sh
+                        try:
+                            attr = curses.color_pair(color_id) | curses.A_BOLD
+                            stdscr.addstr(pos_y, i, ch, attr)
+                        except curses.error:
+                            pass
+                else:
+                    # Draw normal falling characters with fade effect
+                    char_string = ''.join(random.choice(chars) for _ in range(30))
+                    for j in range(30):
+                        fade_y = (y - j) % sh
+                        if 0 <= fade_y < sh:
+                            try:
+                                if j == 0:
+                                    attr = curses.color_pair(color_id) | curses.A_BOLD
+                                elif j < 10:
+                                    attr = curses.color_pair(color_id)
+                                else:
+                                    attr = curses.color_pair(color_id) | curses.A_DIM
+                                stdscr.addstr(fade_y, x, char_string[j], attr)
+                            except curses.error:
+                                pass
 
-# Command-line argument parsing and running the screensaver
+                columns[i] = (columns[i] + speed) % sh  # Move column down for next frame
+
+            stdscr.refresh()  # Update screen with changes
+            time.sleep(0.05)  # Frame rate control (~20 FPS)
+
+    except KeyboardInterrupt:
+        pass  # Graceful exit on Ctrl+C
+
 def main():
-    # Create a parser for command-line arguments
-    parser = argparse.ArgumentParser(description="Matrix Screensaver")
-    # Add an argument for choosing the color of the falling text
-    parser.add_argument('-color', type=str, default='green', help="Choose the color of the falling text")
+    parser = argparse.ArgumentParser(
+        description="Matrix Screensaver - Simulate falling code in the terminal",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+
+    parser.add_argument('-c', '--color', type=str, default='green',
+                        help="Set the falling text color (use -l to list options)")
+    parser.add_argument('-t', '--timeout', type=int, default=None,
+                        help="Exit after N seconds (optional)")
+    parser.add_argument('-l', '--list-colors', action='store_true',
+                        help="List available color options and exit")
+
     args = parser.parse_args()
 
-    # Initialize curses and pass the chosen color to the screensaver function
-    curses.wrapper(lambda stdscr: matrix_rain(stdscr, get_color_pair(args.color)))
+    if args.list_colors:
+        print("Available colors:")
+        for color in COLOR_OPTIONS:
+            print(f"  - {color}")
+        sys.exit(0)
 
-# Run the script if executed directly
+    chosen_color = args.color.lower()
+    if chosen_color not in COLOR_OPTIONS:
+        print(f"Error: Invalid color '{chosen_color}'. Use -l to list available options.")
+        sys.exit(1)
+
+    curses.wrapper(lambda stdscr: matrix_rain(stdscr, chosen_color, args.timeout))
+
 if __name__ == "__main__":
     main()
 
