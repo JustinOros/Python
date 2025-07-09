@@ -68,6 +68,7 @@ class Sushi(pygame.sprite.Sprite):
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption("Sushi Screensaver")
 clock = pygame.time.Clock()  # Clock to control frame rate
+pygame.mouse.set_visible(False) # Hide mouse cursor
 
 # Load sushi images into a list
 sushi_images = load_sushi_images()
