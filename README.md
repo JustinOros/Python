@@ -39,8 +39,8 @@ python3 ham-test-gui.py
 ```
 python3 chatgpt.py
 ```
-### matrix.py
+### matrix-screensaver.py
 `The Matrix Screensaver.`
 ```
-python3 matrix.py
+python3 matrix-screensaver.py
 ```
