@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # Description: The Matrix Screensaver.
 # Usage: python3 matrix.py
 # Author: Justin Oros
@@ -10,11 +10,11 @@ import time
 import argparse
 import sys
 
-# Available colors (excluding black and white for regular text)
+# Define basic colors (excluding black and white) plus the 'random' cycling option
 COLOR_NAMES = ['red', 'green', 'yellow', 'blue', 'purple', 'cyan']
-COLOR_OPTIONS = COLOR_NAMES + ['rgb']  # 'rgb' cycles through colors every 5 seconds
+COLOR_OPTIONS = COLOR_NAMES + ['random']
 
-# Mapping from color names to curses color constants
+# Map color names to curses color constants
 COLOR_MAP = {
     'black': curses.COLOR_BLACK,
     'red': curses.COLOR_RED,
@@ -27,85 +27,111 @@ COLOR_MAP = {
 }
 
 def matrix_rain(stdscr, color_mode, timeout=None):
-    # Initialize curses settings
-    curses.curs_set(0)  # Hide the cursor
-    curses.start_color()  # Enable color functionality
-    curses.use_default_colors()  # Use default terminal background
+    curses.curs_set(0)          # Hide the cursor
+    curses.start_color()        # Enable color functionality
+    curses.use_default_colors() # Use terminal's default background color
+    stdscr.nodelay(True)        # Non-blocking input
+    stdscr.keypad(True)         # Enable special keys (arrow keys)
 
-    # Initialize color pairs for each available color
+    # Initialize color pairs for all defined colors
     for i, name in enumerate(COLOR_NAMES):
         curses.init_pair(i + 1, COLOR_MAP[name], -1)  # Foreground color, default background
 
-    # Initialize variables for color cycling (for 'rgb' mode)
-    color_index = 0
+    # Determine starting color index based on chosen color, default to green if invalid or random
+    if color_mode in COLOR_NAMES:
+        color_index = COLOR_NAMES.index(color_mode)
+    else:
+        color_index = COLOR_NAMES.index('green')
+
     current_color = COLOR_NAMES[color_index]
     next_color = current_color
     last_color_change = time.time()
 
-    # Characters used in the Matrix rain effect (mix of ascii and Greek symbols)
+    manual_color_control = False  # Whether user is manually cycling colors
+
+    # Characters used in the Matrix rain effect (letters, digits, symbols, Greek letters)
     chars = (
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
         "@#$%^&*()[]{}|;:,.<>?/~!_`'\"\\"
         "αβγδεζηθικλμνξοπρστυφχψω∑πΩΔ∫ƒ∞≡∧∨⊕⊗⊙"
     )
 
-    # Signature string that appears as an easter egg every 30 seconds
+    # Signature text that appears as an easter egg
     signature = "Justin Oros"
-    signature_columns = {}  # Tracks column and starting Y-position of signature
+    signature_columns = {}
     signature_visible = False
     signature_visible_until = 0
     last_signature_time = time.time()
 
     start_time = time.time()
-    columns = []  # Y positions of falling characters for each column
-    column_speeds = []  # Speed at which each column falls (some variation)
-    column_colors = []  # Color of each column (for 'rgb' cycling)
+    columns = []
+    column_speeds = []
+    column_colors = []
 
     try:
         while True:
             now = time.time()
             if timeout and (now - start_time) > timeout:
-                break  # Exit if timeout reached
+                break
 
-            sh, sw = stdscr.getmaxyx()  # Get screen height and width
+            # Handle user input keys
+            key = stdscr.getch()
+            if key == curses.KEY_RIGHT:
+                manual_color_control = True
+                color_index = (color_index + 1) % len(COLOR_NAMES)
+                current_color = COLOR_NAMES[color_index]
+                next_color = current_color
+                column_colors = [current_color] * len(column_colors)
+            elif key == curses.KEY_LEFT:
+                manual_color_control = True
+                color_index = (color_index - 1) % len(COLOR_NAMES)
+                current_color = COLOR_NAMES[color_index]
+                next_color = current_color
+                column_colors = [current_color] * len(column_colors)
+            elif key == 3:  # Ctrl-C to quit gracefully
+                break
 
-            # Initialize columns if screen width changes
+            sh, sw = stdscr.getmaxyx()
+
+            # Initialize columns on terminal resize
             if len(columns) != sw:
                 columns = [random.randint(0, sh - 1) for _ in range(sw)]
-                column_speeds = [random.choice([1, 1, 2]) for _ in range(sw)]  # Mostly speed 1, sometimes 2
+                column_speeds = [random.choice([1, 1, 2]) for _ in range(sw)]
                 column_colors = [current_color] * sw
 
-            # Handle color cycling for 'rgb' mode every 5 seconds
-            if color_mode == 'rgb' and (now - last_color_change >= 5):
+            # Automatic color cycling every 5 seconds in 'random' mode if no manual override
+            if color_mode == 'random' and not manual_color_control and (now - last_color_change >= 5):
                 color_index = (color_index + 1) % len(COLOR_NAMES)
                 next_color = COLOR_NAMES[color_index]
                 last_color_change = now
 
-            # Gradually switch column colors in 'rgb' mode with some randomness
-            if color_mode == 'rgb':
+            # Apply random color cycling to columns if in 'random' mode without manual control
+            if color_mode == 'random' and not manual_color_control:
                 for i in range(sw):
                     if column_colors[i] != next_color and random.random() < 0.03:
                         column_colors[i] = next_color
-            elif color_mode in COLOR_NAMES:
-                column_colors = [color_mode] * sw
+            else:
+                # Otherwise use the current selected color for all columns
+                column_colors = [current_color] * sw
 
             # Show signature every 30 seconds for 5 seconds
             if not signature_visible and (now - last_signature_time >= 30):
                 signature_columns.clear()
-                col = random.randint(0, sw - len(signature))  # Random horizontal position
-                y_start = random.randint(5, max(6, sh - len(signature)))  # Random vertical position within bounds
+                col = random.randint(0, sw - len(signature))
+                y_start = random.randint(5, max(6, sh - len(signature)))
                 signature_columns[col] = y_start
                 signature_visible = True
-                signature_visible_until = now + 5  # Display duration of 5 seconds
+                signature_visible_until = now + 5
                 last_signature_time = now
 
-            # Hide signature after display time ends
+            # Hide signature after display duration ends
             if signature_visible and now > signature_visible_until:
                 signature_visible = False
                 signature_columns.clear()
 
-            stdscr.erase()  # Clear screen before drawing new frame
+            stdscr.erase()  # Clear the screen for the new frame
 
+            # Draw each column with either falling chars or signature if visible
             for i in range(sw):
                 x = i
                 y = columns[i]
@@ -113,7 +139,6 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                 color_name = column_colors[i]
                 color_id = COLOR_NAMES.index(color_name) + 1
 
-                # Draw signature if visible in this column
                 if signature_visible and i in signature_columns:
                     y_start = signature_columns[i]
                     for j, ch in enumerate(signature):
@@ -124,7 +149,6 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                         except curses.error:
                             pass
                 else:
-                    # Draw normal falling characters with fade effect
                     char_string = ''.join(random.choice(chars) for _ in range(30))
                     for j in range(30):
                         fade_y = (y - j) % sh
@@ -140,10 +164,10 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                             except curses.error:
                                 pass
 
-                columns[i] = (columns[i] + speed) % sh  # Move column down for next frame
+                columns[i] = (columns[i] + speed) % sh
 
-            stdscr.refresh()  # Update screen with changes
-            time.sleep(0.05)  # Frame rate control (~20 FPS)
+            stdscr.refresh()
+            time.sleep(0.05)
 
     except KeyboardInterrupt:
         pass  # Graceful exit on Ctrl+C
