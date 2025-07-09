@@ -4,8 +4,6 @@
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
-#!/usr/bin/env python3
-
 import curses
 import random
 import time
