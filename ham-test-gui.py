@@ -110,11 +110,11 @@ class QuizGUI:
         nav_frame = tk.Frame(master)
         nav_frame.pack(pady=10)
 
-        self.next_button = tk.Button(nav_frame, text="Next", command=self.check_answer)
-        self.next_button.pack(side=tk.LEFT, padx=5)
-
         self.quit_button = tk.Button(nav_frame, text="Quit", command=self.quit_quiz)
         self.quit_button.pack(side=tk.LEFT, padx=5)
+
+        self.next_button = tk.Button(nav_frame, text="Next", command=self.check_answer)
+        self.next_button.pack(side=tk.LEFT, padx=5)
 
         self.load_next_question()
 
