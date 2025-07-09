@@ -1,0 +1,3 @@
+([('sushi-screensaver',
+   '/Users/justinoros/GitHub/Python/sushi-screensaver/dist/sushi-screensaver',
+   'EXECUTABLE')],)
