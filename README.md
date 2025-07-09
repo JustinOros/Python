@@ -44,3 +44,8 @@ python3 chatgpt.py
 ```
 python3 matrix-screensaver.py
 ```
+### sushi-screensaver.py
+`Sushi Screensaver.`
+```
+python3 sushi-screensaver.py
+```
