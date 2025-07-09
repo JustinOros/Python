@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-# Description: The Matrix Screensaver.
-# Usage: python3 matrix.py
-# Author: Justin Oros
-# Source: https://github.com/JustinOros
 
 import curses
 import random
@@ -10,11 +6,9 @@ import time
 import argparse
 import sys
 
-# Define basic colors (excluding black and white) plus the 'random' cycling option
 COLOR_NAMES = ['red', 'green', 'yellow', 'blue', 'purple', 'cyan']
-COLOR_OPTIONS = COLOR_NAMES + ['random']
+COLOR_OPTIONS = COLOR_NAMES + ['random', 'cycle']
 
-# Map color names to curses color constants
 COLOR_MAP = {
     'black': curses.COLOR_BLACK,
     'red': curses.COLOR_RED,
@@ -27,17 +21,15 @@ COLOR_MAP = {
 }
 
 def matrix_rain(stdscr, color_mode, timeout=None):
-    curses.curs_set(0)          # Hide the cursor
-    curses.start_color()        # Enable color functionality
-    curses.use_default_colors() # Use terminal's default background color
-    stdscr.nodelay(True)        # Non-blocking input
-    stdscr.keypad(True)         # Enable special keys (arrow keys)
+    curses.curs_set(0)
+    curses.start_color()
+    curses.use_default_colors()
+    stdscr.nodelay(True)
+    stdscr.keypad(True)
 
-    # Initialize color pairs for all defined colors
     for i, name in enumerate(COLOR_NAMES):
-        curses.init_pair(i + 1, COLOR_MAP[name], -1)  # Foreground color, default background
+        curses.init_pair(i + 1, COLOR_MAP[name], -1)
 
-    # Determine starting color index based on chosen color, default to green if invalid or random
     if color_mode in COLOR_NAMES:
         color_index = COLOR_NAMES.index(color_mode)
     else:
@@ -46,17 +38,14 @@ def matrix_rain(stdscr, color_mode, timeout=None):
     current_color = COLOR_NAMES[color_index]
     next_color = current_color
     last_color_change = time.time()
+    manual_color_control = False
 
-    manual_color_control = False  # Whether user is manually cycling colors
-
-    # Characters used in the Matrix rain effect (letters, digits, symbols, Greek letters)
     chars = (
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
         "@#$%^&*()[]{}|;:,.<>?/~!_`'\"\\"
         "αβγδεζηθικλμνξοπρστυφχψω∑πΩΔ∫ƒ∞≡∧∨⊕⊗⊙"
     )
 
-    # Signature text that appears as an easter egg
     signature = "Justin Oros"
     signature_columns = {}
     signature_visible = False
@@ -74,7 +63,6 @@ def matrix_rain(stdscr, color_mode, timeout=None):
             if timeout and (now - start_time) > timeout:
                 break
 
-            # Handle user input keys
             key = stdscr.getch()
             if key == curses.KEY_RIGHT:
                 manual_color_control = True
@@ -88,33 +76,34 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                 current_color = COLOR_NAMES[color_index]
                 next_color = current_color
                 column_colors = [current_color] * len(column_colors)
-            elif key == 3:  # Ctrl-C to quit gracefully
+            elif key == 3:
                 break
 
             sh, sw = stdscr.getmaxyx()
 
-            # Initialize columns on terminal resize
             if len(columns) != sw:
                 columns = [random.randint(0, sh - 1) for _ in range(sw)]
                 column_speeds = [random.choice([1, 1, 2]) for _ in range(sw)]
                 column_colors = [current_color] * sw
 
-            # Automatic color cycling every 5 seconds in 'random' mode if no manual override
             if color_mode == 'random' and not manual_color_control and (now - last_color_change >= 5):
                 color_index = (color_index + 1) % len(COLOR_NAMES)
                 next_color = COLOR_NAMES[color_index]
                 last_color_change = now
 
-            # Apply random color cycling to columns if in 'random' mode without manual control
+            if color_mode == 'cycle' and not manual_color_control and (now - last_color_change >= 0.1):
+                color_index = (color_index + 1) % len(COLOR_NAMES)
+                current_color = COLOR_NAMES[color_index]
+                column_colors = [current_color] * sw
+                last_color_change = now
+
             if color_mode == 'random' and not manual_color_control:
                 for i in range(sw):
                     if column_colors[i] != next_color and random.random() < 0.03:
                         column_colors[i] = next_color
-            else:
-                # Otherwise use the current selected color for all columns
+            elif color_mode != 'cycle':
                 column_colors = [current_color] * sw
 
-            # Show signature every 30 seconds for 5 seconds
             if not signature_visible and (now - last_signature_time >= 30):
                 signature_columns.clear()
                 col = random.randint(0, sw - len(signature))
@@ -124,20 +113,20 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                 signature_visible_until = now + 5
                 last_signature_time = now
 
-            # Hide signature after display duration ends
             if signature_visible and now > signature_visible_until:
                 signature_visible = False
                 signature_columns.clear()
 
-            stdscr.erase()  # Clear the screen for the new frame
+            stdscr.erase()
 
-            # Draw each column with either falling chars or signature if visible
             for i in range(sw):
                 x = i
                 y = columns[i]
                 speed = column_speeds[i]
                 color_name = column_colors[i]
                 color_id = COLOR_NAMES.index(color_name) + 1
+
+                rain_length = 30
 
                 if signature_visible and i in signature_columns:
                     y_start = signature_columns[i]
@@ -149,8 +138,8 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                         except curses.error:
                             pass
                 else:
-                    char_string = ''.join(random.choice(chars) for _ in range(30))
-                    for j in range(30):
+                    char_string = ''.join(random.choice(chars) for _ in range(rain_length))
+                    for j in range(rain_length):
                         fade_y = (y - j) % sh
                         if 0 <= fade_y < sh:
                             try:
@@ -170,21 +159,19 @@ def matrix_rain(stdscr, color_mode, timeout=None):
             time.sleep(0.05)
 
     except KeyboardInterrupt:
-        pass  # Graceful exit on Ctrl+C
+        pass
 
 def main():
     parser = argparse.ArgumentParser(
         description="Matrix Screensaver - Simulate falling code in the terminal",
         formatter_class=argparse.RawTextHelpFormatter
     )
-
     parser.add_argument('-c', '--color', type=str, default='green',
                         help="Set the falling text color (use -l to list options)")
     parser.add_argument('-t', '--timeout', type=int, default=None,
                         help="Exit after N seconds (optional)")
     parser.add_argument('-l', '--list-colors', action='store_true',
                         help="List available color options and exit")
-
     args = parser.parse_args()
 
     if args.list_colors:
