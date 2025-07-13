@@ -18,6 +18,9 @@ SCREEN_HEIGHT = pygame.display.Info().current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption("Block Wars")
 
+# Hide mouse cursor
+pygame.mouse.set_visible(False)
+
 # Define colors
 WHITE = (255, 255, 255)
 BLUE = (0, 0, 255)
@@ -172,7 +175,7 @@ class Enemy:
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
 # Draw pause screen
-def draw_pause_screen():
+def draw_pause_screen(paused_by_controller):
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay.set_alpha(180)
     overlay.fill((0, 0, 0))
@@ -181,7 +184,13 @@ def draw_pause_screen():
     pause_font = pygame.font.SysFont(None, 100)
     instruction_font = pygame.font.SysFont(None, 40)
     pause_text = pause_font.render("PAUSED", True, WHITE)
-    instruction_text = instruction_font.render("Press ESC to resume or Q to Quit.", True, WHITE)
+
+    if paused_by_controller:
+        instruction = "Press START to resume or X to Exit."
+    else:
+        instruction = "Press ESC to resume or Q to Quit."
+
+    instruction_text = instruction_font.render(instruction, True, WHITE)
 
     screen.blit(pause_text, (
         SCREEN_WIDTH // 2 - pause_text.get_width() // 2,
@@ -203,7 +212,17 @@ def game():
     enemies = [Enemy(2)]
     running = True
     paused = False
+    paused_by_controller = False
     player_dead = False
+    controller_active = False
+
+    # Rumble function now inside game to access controller_active
+    def rumble(duration=300, strength=1.0):
+        if controller_active and controller and hasattr(controller, "rumble"):
+            try:
+                controller.rumble(strength, strength, duration)
+            except Exception as e:
+                print(f"Rumble error: {e}")
 
     if GO_SOUND:
         GO_SOUND.play()
@@ -220,6 +239,7 @@ def game():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused
+                    paused_by_controller = False
                 elif paused and event.key == pygame.K_q:
                     running = False
                 elif not paused and event.key == pygame.K_SPACE:
@@ -228,8 +248,10 @@ def game():
                         if FIRE_SOUND:
                             FIRE_SOUND.play()
             if event.type == pygame.JOYBUTTONDOWN:
+                controller_active = True  # Enable rumble after first controller input
                 if event.button == 7 or event.button == 6:  # Start or Select
                     paused = not paused
+                    paused_by_controller = True
                 elif paused and event.button == 2:  # X button
                     running = False
                 elif not paused and event.button == 0:  # A button
@@ -245,7 +267,7 @@ def game():
                             FIRE_SOUND.play()
 
         if paused:
-            draw_pause_screen()
+            draw_pause_screen(paused_by_controller)
             pygame.display.flip()
             clock.tick(60)
             continue
@@ -267,6 +289,7 @@ def game():
                 if not player_dead:
                     if DIE_SOUND:
                         DIE_SOUND.play()
+                    rumble(duration=1000, strength=1.0)
                     player_dead = True
                 show_final_score(score)
                 running = False
@@ -277,6 +300,7 @@ def game():
                     explosions.append(Explosion(enemy.x + enemy.size // 2, enemy.y + enemy.size // 2))
                     if ENEMY_DEATH_SOUND:
                         ENEMY_DEATH_SOUND.play()
+                    rumble(duration=150, strength=0.5)
                     enemies.remove(enemy)
                     projectiles.remove(projectile)
                     score += 100
@@ -309,7 +333,8 @@ def show_final_score(score):
     font_large = pygame.font.SysFont(None, 80)
     final_score_text = font_large.render(f"Final Score: {score}", True, WHITE)
     screen.fill(DARK_GRAY)
-    screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2, SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
+    screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
+                                  SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
     time.sleep(3)
 
