@@ -19,6 +19,9 @@ WIDTH, HEIGHT = info.current_w, info.current_h
 pygame.display.set_caption("Cat Catcher")
 clock = pygame.time.Clock()
 
+wallpaper = pygame.image.load("wallpaper.jpg").convert()
+wallpaper = pygame.transform.scale(wallpaper, (WIDTH, HEIGHT))
+
 CAT_SIZE = [160, 160]
 SUSHI_SIZE = (50, 50)
 CLOUD_SIZE = (200, 120)
@@ -178,7 +181,7 @@ last_spawn = pygame.time.get_ticks()
 
 while True:
     dt = clock.tick(60)
-    screen.fill((135, 206, 235))
+    screen.blit(wallpaper, (0, 0))
 
     keys = pygame.key.get_pressed()
     move = 0
@@ -336,4 +339,3 @@ while True:
         draw_centered_multiline_text([f"Final Score: {score}", "Game Over!"], color=(255, 0, 0))
 
     pygame.display.flip()
-
