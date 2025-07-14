@@ -59,7 +59,7 @@ Fire: Spacebar (Keyboard) or Primary-Click (Mouse) or A-button (Controller)
 Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
 ```
 ### maguro-game.py
-`Maguro The Cat eats sushi.`
+`Maguro Cat eats sushi.`
 ```
 python3 maguro-game.py
 
