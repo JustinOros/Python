@@ -13,14 +13,14 @@ WIDTH, HEIGHT = info.current_w, info.current_h
 pygame.display.set_caption("Cat Catcher")
 clock = pygame.time.Clock()
 
-CAT_SIZE = (160, 160)
+CAT_SIZE = [160, 160]
 SUSHI_SIZE = (50, 50)
 
-cat_left = pygame.image.load("tuna-left.png").convert_alpha()
-cat_left = pygame.transform.smoothscale(cat_left, CAT_SIZE)
+cat_left_base = pygame.image.load("tuna-left.png").convert_alpha()
+cat_right_base = pygame.image.load("tuna-right.png").convert_alpha()
 
-cat_right = pygame.image.load("tuna-right.png").convert_alpha()
-cat_right = pygame.transform.smoothscale(cat_right, CAT_SIZE)
+cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
+cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
 
 sushi_imgs = []
 for i in [1, 2, 4, 5]:
@@ -41,7 +41,7 @@ font = pygame.font.SysFont(None, 48)
 cat_img = cat_right
 cat_rect = cat_img.get_rect()
 cat_rect.centerx = WIDTH // 2
-cat_rect.bottom = HEIGHT + 30
+cat_rect.bottom = HEIGHT
 
 cat_speed = 14
 score = 0
@@ -53,6 +53,9 @@ explode_start = None
 sushi_fall_speed = 5
 sushi_interval = 125
 objects = []
+
+start_time = pygame.time.get_ticks()
+speed_increase_time = start_time
 
 def draw_text(text, pos, color=(255, 255, 255)):
     surf = font.render(text, True, color)
@@ -71,7 +74,6 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         rendered_lines.append(surf)
         total_height += surf.get_height() + line_spacing
     total_height -= line_spacing
-
     y = (HEIGHT - total_height) // 2
     for surf in rendered_lines:
         rect = surf.get_rect(center=(WIDTH // 2, y + surf.get_height() // 2))
@@ -79,7 +81,7 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, game_over_time, paused, exploding, explode_start
+    global score, objects, game_over, cat_rect, cat_img, game_over_time, paused, exploding, explode_start, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
     score = 0
     objects = []
     game_over = False
@@ -87,9 +89,16 @@ def reset_game():
     paused = False
     exploding = False
     explode_start = None
-    cat_rect.centerx = WIDTH // 2
-    cat_rect.bottom = HEIGHT + 30
+    CAT_SIZE = [160, 160]
+    cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
+    cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
     cat_img = cat_right
+    cat_rect = cat_img.get_rect()
+    cat_rect.centerx = WIDTH // 2
+    cat_rect.bottom = HEIGHT
+    sushi_fall_speed = 5
+    start_time = pygame.time.get_ticks()
+    speed_increase_time = start_time
 
 def spawn_sushi():
     x = random.randint(50, WIDTH - 50)
@@ -138,6 +147,10 @@ while True:
 
     now = pygame.time.get_ticks()
 
+    if now - speed_increase_time > 30000:
+        sushi_fall_speed += 1
+        speed_increase_time = now
+
     if exploding:
         explosion_radius = 100
         explosion_center = cat_rect.center
@@ -164,7 +177,7 @@ while True:
 
         cat_rect.x += move
         cat_rect.x = max(0, min(WIDTH - cat_rect.width, cat_rect.x))
-        cat_rect.bottom = HEIGHT + 30
+        cat_rect.bottom = HEIGHT
 
         if now - last_spawn > sushi_interval:
             spawn_sushi()
@@ -183,6 +196,15 @@ while True:
                     explode_start = None
                 else:
                     score += 1
+                    mid_x = cat_rect.centerx
+                    CAT_SIZE[0] += 1
+                    CAT_SIZE[1] += 1
+                    cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
+                    cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
+                    cat_img = cat_left if cat_img == cat_left else cat_right
+                    cat_rect = cat_img.get_rect()
+                    cat_rect.centerx = mid_x
+                    cat_rect.bottom = HEIGHT
                 objects.remove(obj)
 
             elif obj['rect'].top > HEIGHT:
