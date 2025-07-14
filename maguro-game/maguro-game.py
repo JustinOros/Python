@@ -7,7 +7,6 @@ pygame.init()
 pygame.mixer.init()
 pygame.joystick.init()
 
-# Constants
 WIDTH, HEIGHT = pygame.display.Info().current_w, pygame.display.Info().current_h
 SCREEN_SIZE = (WIDTH, HEIGHT)
 CAT_INITIAL_SIZE = [160, 160]
@@ -15,25 +14,20 @@ CAT_MAX_SIZE = [320, 320]
 SUSHI_SIZE = (50, 50)
 CLOUD_SIZE = (200, 120)
 PETAL_SIZE = (30, 30)
-GAME_OVER_DELAY = 3000  # ms
+GAME_OVER_DELAY = 3000
 WASABI_CHANCE = 0.1
 
-
-# Helper Functions
 def quit_game():
     pygame.quit()
     sys.exit()
 
-
 class Cat:
     def __init__(self, cat_right_img, pos, speed):
-        self.cat_right_base = cat_right_img  # Only right-facing base image
+        self.cat_right_base = cat_right_img
         self.size = CAT_INITIAL_SIZE.copy()
         self.speed = speed
         self.facing = "right"
-        # Prepare the right-facing scaled image
         self.image_right = pygame.transform.smoothscale(self.cat_right_base, self.size)
-        # Prepare flipped left-facing image
         self.image_left = pygame.transform.flip(self.image_right, True, False)
         self.image = self.image_right
         self.rect = self.image.get_rect()
@@ -42,7 +36,6 @@ class Cat:
 
     def update_image(self):
         if self.facing == "left":
-            # Flip the right image horizontally to face left
             self.image = pygame.transform.flip(self.image_right, True, False)
         else:
             self.image = self.image_right
@@ -53,12 +46,10 @@ class Cat:
         self.rect.bottom = HEIGHT
 
     def grow(self):
-        # Increase size but clamp
         self.size[0] = min(self.size[0] + self.grow_step, CAT_MAX_SIZE[0])
         self.size[1] = min(self.size[1] + self.grow_step, CAT_MAX_SIZE[1])
         self.image_right = pygame.transform.smoothscale(self.cat_right_base, self.size)
         self.update_image()
-        # Reset rect to bottom center
         mid_x = self.rect.centerx
         self.rect = self.image.get_rect()
         self.rect.centerx = mid_x
@@ -66,7 +57,6 @@ class Cat:
 
     def draw(self, surface):
         surface.blit(self.image, self.rect)
-
 
 class Sushi:
     def __init__(self, image, pos, wasabi=False, speed=5):
@@ -83,7 +73,6 @@ class Sushi:
 
     def off_screen(self):
         return self.rect.top > HEIGHT
-
 
 class Cloud:
     def __init__(self, image, speed_multiplier=1.0):
@@ -113,7 +102,6 @@ class Cloud:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
-
 class Petal:
     def __init__(self, image, pos, petal_toggle, speed_multiplier=1.0):
         self.image = image
@@ -138,7 +126,6 @@ class Petal:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
-
 class Spawner:
     def __init__(self, spawn_interval_ms):
         self.spawn_interval = spawn_interval_ms
@@ -150,76 +137,65 @@ class Spawner:
     def update_spawn_time(self, now):
         self.last_spawn = now
 
-
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode(SCREEN_SIZE, pygame.FULLSCREEN)
         pygame.mouse.set_visible(False)
         pygame.display.set_caption("Maguro!")
-
-        # Load assets
         self.wallpaper = pygame.image.load("wallpaper.jpg").convert()
         self.wallpaper = pygame.transform.scale(self.wallpaper, SCREEN_SIZE)
-
-        # Only load the right-facing cat image
         self.cat_right_base = pygame.image.load("cat.png").convert_alpha()
-
         self.sushi_images = []
-        for i in [1, 2, 4, 3]:  # sushi5.png renamed to sushi3.png
+        for i in [1, 2, 4, 3]:
             img = pygame.image.load(f"sushi{i}.png").convert_alpha()
             img = pygame.transform.smoothscale(img, SUSHI_SIZE)
             self.sushi_images.append(img)
-        self.wasabi_img = pygame.image.load("wasabi.png").convert_alpha()  # sushi3.png renamed to wasabi.png
+        self.wasabi_img = pygame.image.load("wasabi.png").convert_alpha()
         self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, SUSHI_SIZE)
-
-        self.cloud_base = pygame.image.load("cloud.png").convert_alpha()
-        self.cloud_img = pygame.transform.smoothscale(self.cloud_base, CLOUD_SIZE)
-
-        self.petal_base = pygame.image.load("petal.png").convert_alpha()
-        self.petal_img = pygame.transform.smoothscale(self.petal_base, PETAL_SIZE)
+        self.cloud_img = pygame.transform.smoothscale(pygame.image.load("cloud.png").convert_alpha(), CLOUD_SIZE)
+        self.petal_img = pygame.transform.smoothscale(pygame.image.load("petal.png").convert_alpha(), PETAL_SIZE)
         self.petal_img_flipped = pygame.transform.flip(self.petal_img, True, False)
 
-        # Sounds
         pygame.mixer.music.load("audio_music.mp3")
         pygame.mixer.music.set_volume(0.5)
-        pygame.mixer.music.play(-1)
+
         self.chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
         self.meow_sound = pygame.mixer.Sound("audio_meow.mp3")
+        self.game_start_sound = pygame.mixer.Sound("audio_gamestart.mp3")
+        self.game_start_sound.set_volume(1.0)
+        self.game_over_sound = pygame.mixer.Sound("audio_gameover.mp3")
+        self.game_over_sound.set_volume(1.0)
 
-        # Joysticks: support multiple joysticks if connected
         self.joysticks = []
         for i in range(pygame.joystick.get_count()):
             joy = pygame.joystick.Joystick(i)
             joy.init()
             self.joysticks.append(joy)
 
-        # Game entities
         self.cat = Cat(self.cat_right_base, (WIDTH // 2, HEIGHT), 14)
         self.sushis = []
         self.clouds = []
         self.petals = []
         self.petal_toggle = False
-
-        # Spawners
         self.sushi_spawner = Spawner(125)
         self.cloud_spawner = Spawner(4000)
         self.petal_spawner = Spawner(200)
-
         self.score = 0
         self.game_over = False
         self.game_over_time = None
         self.paused = False
         self.pause_by_controller = False
-
         self.sushi_fall_speed = 5
         self.cloud_speed_multiplier = 1.0
         self.petal_speed_multiplier = 1.0
-
         self.font = pygame.font.SysFont(None, 48)
         self.small_font = pygame.font.SysFont(None, 32)
-
         self.clock = pygame.time.Clock()
         self.speed_increase_time = pygame.time.get_ticks()
+        self.intro_start_time = pygame.time.get_ticks()
+        self.intro_duration = 3000
+        self.show_intro = True
+        self.music_started = False
 
     def draw_text(self, text, pos, color=(255, 255, 255)):
         surf = self.font.render(text, True, color)
@@ -243,6 +219,26 @@ class Game:
             rect = surf.get_rect(center=(WIDTH // 2, y + surf.get_height() // 2))
             self.screen.blit(surf, rect)
             y += surf.get_height() + line_spacing
+
+    def draw_intro_text(self, now):
+        elapsed = now - self.intro_start_time
+        blink_on_duration = 250
+        blink_off_duration = 250
+        total_blink_cycle = blink_on_duration + blink_off_duration
+        blink_cycles = 2
+        if elapsed < blink_cycles * total_blink_cycle:
+            blink_phase = elapsed % total_blink_cycle
+            visible = blink_phase < blink_on_duration
+        elif elapsed < self.intro_duration:
+            visible = True
+        else:
+            self.show_intro = False
+            return
+        if visible:
+            font = pygame.font.SysFont(None, 100)
+            text_surf = font.render("EAT SUSHI!!", True, (255, 255, 255))
+            rect = text_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            self.screen.blit(text_surf, rect)
 
     def spawn_sushi(self):
         x = random.randint(50, WIDTH - 50)
@@ -281,8 +277,11 @@ class Game:
         self.cloud_spawner.last_spawn = now - self.cloud_spawner.spawn_interval
         self.petal_spawner.last_spawn = now - self.petal_spawner.spawn_interval
         self.speed_increase_time = now
-
-        pygame.mixer.music.play(-1)
+        self.intro_start_time = now
+        self.show_intro = True
+        self.music_started = False
+        pygame.mixer.music.stop()
+        self.game_start_sound.play()
 
     def pause(self, by_controller=False):
         self.paused = True
@@ -295,7 +294,6 @@ class Game:
 
     def run(self):
         deadzone = 0.2
-
         while True:
             dt = self.clock.tick(60)
             now = pygame.time.get_ticks()
@@ -318,14 +316,13 @@ class Game:
                     elif self.game_over and not self.paused:
                         self.reset_game()
                 if event.type == pygame.JOYBUTTONDOWN:
-                    # Find which joystick pressed button
-                    if event.button in [7, 6]:  # Start buttons
+                    if event.button in [7, 6]:
                         if not self.game_over:
                             if self.paused:
                                 self.unpause()
                             else:
                                 self.pause(by_controller=True)
-                    elif self.paused and event.button == 2:  # X button to quit while paused
+                    elif self.paused and event.button == 2:
                         quit_game()
                     elif self.game_over and not self.paused:
                         self.reset_game()
@@ -341,14 +338,24 @@ class Game:
                 pygame.display.flip()
                 continue
 
-            # Difficulty increase every 30 seconds
-            if now - self.speed_increase_time > 30000:
+            if self.show_intro:
+                self.draw_intro_text(now)
+                if not self.music_started and not self.show_intro:
+                    pygame.mixer.music.play(-1)
+                    self.music_started = True
+                pygame.display.flip()
+                continue
+
+            if not self.music_started:
+                pygame.mixer.music.play(-1)
+                self.music_started = True
+
+            if not self.game_over and now - self.speed_increase_time > 30000:
                 self.sushi_fall_speed += 1
                 self.cloud_speed_multiplier += 0.1
                 self.petal_speed_multiplier += 0.1
                 self.speed_increase_time = now
 
-            # Spawn clouds, petals, sushi
             if self.cloud_spawner.can_spawn(now):
                 self.spawn_cloud()
                 self.cloud_spawner.update_spawn_time(now)
@@ -359,20 +366,17 @@ class Game:
                 self.spawn_sushi()
                 self.sushi_spawner.update_spawn_time(now)
 
-            # Update clouds
             for cloud in self.clouds[:]:
                 cloud.update(dt, now)
                 if cloud.off_screen():
                     self.clouds.remove(cloud)
 
-            # Update petals
             for petal in self.petals[:]:
                 petal.update(dt, now)
                 if petal.off_screen():
                     self.petals.remove(petal)
 
             if not self.game_over:
-                # Handle input from keyboard first
                 if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                     move = -1
                     self.cat.facing = "left"
@@ -380,20 +384,9 @@ class Game:
                     move = 1
                     self.cat.facing = "right"
 
-                # Handle input from joysticks
                 for joy in self.joysticks:
-                    # Left stick horizontal axis (usually axis 0)
                     axis0 = joy.get_axis(0)
-                    # Right stick horizontal axis (usually axis 2)
                     axis2 = joy.get_axis(2)
-
-                    # Safely check for hats
-                    if joy.get_numhats() > 0:
-                        hat_x, _ = joy.get_hat(0)
-                    else:
-                        hat_x = 0
-
-                    # Only override move if no keyboard input (move==0)
                     if move == 0:
                         if abs(axis0) > deadzone:
                             move = int(axis0 / abs(axis0))
@@ -401,24 +394,22 @@ class Game:
                         elif abs(axis2) > deadzone:
                             move = int(axis2 / abs(axis2))
                             self.cat.facing = "left" if axis2 < 0 else "right"
-                        elif hat_x != 0:
-                            move = hat_x
-                            self.cat.facing = "left" if hat_x < 0 else "right"
 
                 self.cat.update_image()
                 self.cat.move(move)
 
-                tuna_mid_y = self.cat.rect.top + self.cat.rect.height // 2
+                cat_mid_y = self.cat.rect.top + self.cat.rect.height // 2
 
-                # Update sushi positions and collisions
                 for sushi in self.sushis[:]:
                     sushi.speed = self.sushi_fall_speed
                     sushi.update(dt)
 
                     horizontal_overlap = sushi.rect.right > self.cat.rect.left and sushi.rect.left < self.cat.rect.right
-                    if horizontal_overlap and sushi.rect.bottom >= tuna_mid_y:
+                    if horizontal_overlap and sushi.rect.bottom >= cat_mid_y:
                         if sushi.wasabi:
                             self.meow_sound.play()
+                            pygame.mixer.music.stop()
+                            self.game_over_sound.play()
                             self.game_over = True
                             self.game_over_time = None
                         else:
@@ -428,14 +419,12 @@ class Game:
                         self.sushis.remove(sushi)
                     elif sushi.off_screen():
                         self.sushis.remove(sushi)
-
             else:
                 if self.game_over_time is None:
                     self.game_over_time = now
                 elif now - self.game_over_time >= GAME_OVER_DELAY:
                     quit_game()
 
-            # Draw everything
             for cloud in self.clouds:
                 cloud.draw(self.screen)
             for petal in self.petals:
@@ -450,7 +439,6 @@ class Game:
                 self.draw_centered_multiline_text([f"Final Score: {self.score}", "Game Over!"], color=(255, 0, 0))
 
             pygame.display.flip()
-
 
 if __name__ == "__main__":
     game = Game()
