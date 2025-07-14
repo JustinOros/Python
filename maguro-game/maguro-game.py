@@ -9,7 +9,7 @@ pygame.joystick.init()
 # Load and play background music
 pygame.mixer.music.load("audio_music.mp3")
 pygame.mixer.music.set_volume(0.5)
-pygame.mixer.music.play(-1)  # Loop forever
+pygame.mixer.music.play(-1)
 
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
@@ -57,6 +57,7 @@ score = 0
 game_over = False
 game_over_time = None
 paused = False
+pause_by_controller = False
 exploding = False
 explode_start = None
 sushi_fall_speed = 5
@@ -90,12 +91,13 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, game_over_time, paused, exploding, explode_start, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
+    global score, objects, game_over, cat_rect, cat_img, game_over_time, paused, pause_by_controller, exploding, explode_start, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
     score = 0
     objects = []
     game_over = False
     game_over_time = None
     paused = False
+    pause_by_controller = False
     exploding = False
     explode_start = None
     CAT_SIZE = [160, 160]
@@ -134,6 +136,7 @@ while True:
             if event.key == pygame.K_ESCAPE:
                 if not exploding and not game_over:
                     paused = not paused
+                    pause_by_controller = False
                     if paused:
                         pygame.mixer.music.pause()
                     else:
@@ -147,6 +150,7 @@ while True:
             if event.button == 7 or event.button == 6:
                 if not exploding and not game_over:
                     paused = not paused
+                    pause_by_controller = True
                     if paused:
                         pygame.mixer.music.pause()
                     else:
@@ -158,7 +162,15 @@ while True:
                 reset_game()
 
     if paused:
-        draw_centered_text("PAUSED", (255, 255, 0))
+        draw_centered_text("PAUSED", (255, 255, 255))
+        small_font = pygame.font.SysFont(None, 32)
+        if pause_by_controller:
+            instruction = small_font.render("Press START to resume or X to quit.", True, (255, 255, 255))
+        else:
+            instruction = small_font.render("Press ESC to resume or Q to quit.", True, (255, 255, 255))
+        instr_rect = instruction.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40))
+        screen.blit(instruction, instr_rect)
+
         pygame.display.flip()
         continue
 
