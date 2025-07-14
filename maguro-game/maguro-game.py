@@ -6,7 +6,6 @@ pygame.init()
 pygame.mixer.init()
 pygame.joystick.init()
 
-# Load and play background music
 pygame.mixer.music.load("audio_music.mp3")
 pygame.mixer.music.set_volume(0.5)
 pygame.mixer.music.play(-1)
@@ -48,6 +47,7 @@ if pygame.joystick.get_count() > 0:
 font = pygame.font.SysFont(None, 48)
 
 cat_img = cat_right
+cat_facing = "right"
 cat_rect = cat_img.get_rect()
 cat_rect.centerx = WIDTH // 2
 cat_rect.bottom = HEIGHT
@@ -58,8 +58,6 @@ game_over = False
 game_over_time = None
 paused = False
 pause_by_controller = False
-exploding = False
-explode_start = None
 sushi_fall_speed = 5
 sushi_interval = 125
 objects = []
@@ -91,18 +89,17 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, game_over_time, paused, pause_by_controller, exploding, explode_start, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
+    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
     score = 0
     objects = []
     game_over = False
     game_over_time = None
     paused = False
     pause_by_controller = False
-    exploding = False
-    explode_start = None
     CAT_SIZE = [160, 160]
     cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
     cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
+    cat_facing = "right"
     cat_img = cat_right
     cat_rect = cat_img.get_rect()
     cat_rect.centerx = WIDTH // 2
@@ -123,7 +120,7 @@ last_spawn = pygame.time.get_ticks()
 
 while True:
     dt = clock.tick(60)
-    screen.fill((30, 30, 30))
+    screen.fill((135, 206, 235))
 
     keys = pygame.key.get_pressed()
     move = 0
@@ -134,7 +131,7 @@ while True:
             sys.exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                if not exploding and not game_over:
+                if not game_over:
                     paused = not paused
                     pause_by_controller = False
                     if paused:
@@ -148,7 +145,7 @@ while True:
                 reset_game()
         if joystick and event.type == pygame.JOYBUTTONDOWN:
             if event.button == 7 or event.button == 6:
-                if not exploding and not game_over:
+                if not game_over:
                     paused = not paused
                     pause_by_controller = True
                     if paused:
@@ -170,7 +167,6 @@ while True:
             instruction = small_font.render("Press ESC to resume or Q to quit.", True, (255, 255, 255))
         instr_rect = instruction.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 40))
         screen.blit(instruction, instr_rect)
-
         pygame.display.flip()
         continue
 
@@ -180,29 +176,21 @@ while True:
         sushi_fall_speed += 1
         speed_increase_time = now
 
-    if exploding:
-        explosion_radius = 100
-        explosion_center = cat_rect.center
-        pygame.draw.circle(screen, (255, 0, 0), explosion_center, explosion_radius)
-        if explode_start is None:
-            explode_start = now
-        elif now - explode_start >= 1000:
-            exploding = False
-            game_over = True
-            game_over_time = None
-    elif not game_over:
+    if not game_over:
         if keys[pygame.K_a]:
             move = -cat_speed
-            cat_img = cat_left
+            cat_facing = "left"
         elif keys[pygame.K_d]:
             move = cat_speed
-            cat_img = cat_right
+            cat_facing = "right"
 
         if joystick:
             axis = joystick.get_axis(0)
             if abs(axis) > 0.2:
                 move = int(axis * cat_speed)
-                cat_img = cat_left if axis < 0 else cat_right
+                cat_facing = "left" if axis < 0 else "right"
+
+        cat_img = cat_left if cat_facing == "left" else cat_right
 
         cat_rect.x += move
         cat_rect.x = max(0, min(WIDTH - cat_rect.width, cat_rect.x))
@@ -216,14 +204,13 @@ while True:
 
         for obj in objects[:]:
             obj['rect'].y += sushi_fall_speed
-
             horizontal_overlap = obj['rect'].right > cat_rect.left and obj['rect'].left < cat_rect.right
 
             if horizontal_overlap and obj['rect'].bottom >= tuna_mid_y:
                 if obj['wasabi']:
                     meow_sound.play()
-                    exploding = True
-                    explode_start = None
+                    game_over = True
+                    game_over_time = None
                 else:
                     score += 1
                     chomp_sound.play()
@@ -232,15 +219,13 @@ while True:
                     CAT_SIZE[1] += 1
                     cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
                     cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
-                    cat_img = cat_left if cat_img == cat_left else cat_right
+                    cat_img = cat_left if cat_facing == "left" else cat_right
                     cat_rect = cat_img.get_rect()
                     cat_rect.centerx = mid_x
                     cat_rect.bottom = HEIGHT
                 objects.remove(obj)
-
             elif obj['rect'].top > HEIGHT:
                 objects.remove(obj)
-
     else:
         if game_over_time is None:
             game_over_time = now
@@ -248,8 +233,7 @@ while True:
             pygame.quit()
             sys.exit()
 
-    if not exploding:
-        screen.blit(cat_img, cat_rect)
+    screen.blit(cat_img, cat_rect)
 
     for obj in objects:
         screen.blit(obj['img'], obj['rect'])
