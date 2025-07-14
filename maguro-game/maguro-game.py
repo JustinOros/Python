@@ -164,11 +164,11 @@ class Game:
         self.cat_right_base = pygame.image.load("cat.png").convert_alpha()
 
         self.sushi_images = []
-        for i in [1, 2, 4, 5]:
+        for i in [1, 2, 4, 3]:  # sushi5.png renamed to sushi3.png
             img = pygame.image.load(f"sushi{i}.png").convert_alpha()
             img = pygame.transform.smoothscale(img, SUSHI_SIZE)
             self.sushi_images.append(img)
-        self.wasabi_img = pygame.image.load("sushi3.png").convert_alpha()
+        self.wasabi_img = pygame.image.load("wasabi.png").convert_alpha()  # sushi3.png renamed to wasabi.png
         self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, SUSHI_SIZE)
 
         self.cloud_base = pygame.image.load("cloud.png").convert_alpha()
@@ -368,10 +368,10 @@ class Game:
 
             if not self.game_over:
                 # Handle input
-                if keys[pygame.K_a]:
+                if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                     move = -1
                     self.cat.facing = "left"
-                elif keys[pygame.K_d]:
+                elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
                     move = 1
                     self.cat.facing = "right"
 
