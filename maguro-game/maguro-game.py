@@ -44,6 +44,8 @@ cloud_img = pygame.transform.smoothscale(cloud_base, CLOUD_SIZE)
 
 petal_base = pygame.image.load("petal.png").convert_alpha()
 petal_img = pygame.transform.smoothscale(petal_base, PETAL_SIZE)
+petal_img_flipped = pygame.transform.flip(petal_img, True, False)
+petal_toggle = False
 
 chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
 meow_sound = pygame.mixer.Sound("audio_meow.mp3")
@@ -109,7 +111,10 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right, clouds, last_cloud_spawn, cloud_speed_multiplier, petals, last_petal_spawn, petal_fall_speed, petal_speed_multiplier
+    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller
+    global start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
+    global clouds, last_cloud_spawn, cloud_speed_multiplier
+    global petals, last_petal_spawn, petal_fall_speed, petal_speed_multiplier, petal_toggle
     score = 0
     objects = []
     game_over = False
@@ -132,6 +137,7 @@ def reset_game():
     last_petal_spawn = pygame.time.get_ticks() - petal_spawn_interval
     petal_fall_speed = 3
     petal_speed_multiplier = 1.0
+    petal_toggle = False
     start_time = pygame.time.get_ticks()
     speed_increase_time = start_time
 
@@ -156,12 +162,16 @@ def spawn_cloud():
     clouds.append({'rect': rect, 'speed': speed, 'base_y': y, 'phase': phase})
 
 def spawn_petal():
+    global petal_toggle
     x = random.randint(0, WIDTH)
     y = -PETAL_SIZE[1]
-    rect = petal_img.get_rect(topleft=(x, y))
+    image = petal_img_flipped if petal_toggle else petal_img
+    petal_toggle = not petal_toggle
+    rect = image.get_rect(topleft=(x, y))
     horizontal_drift = random.uniform(-0.5, 0.5)
     phase = random.uniform(0, 2 * math.pi)
-    petals.append({'rect': rect, 'drift': horizontal_drift, 'base_x': x, 'phase': phase})
+    spawn_time = pygame.time.get_ticks()
+    petals.append({'rect': rect, 'drift': horizontal_drift, 'base_x': x, 'phase': phase, 'img': image, 'spawn_time': spawn_time})
 
 reset_game()
 last_spawn = pygame.time.get_ticks()
@@ -236,10 +246,8 @@ while True:
 
     for cloud in clouds[:]:
         cloud['rect'].x += cloud['speed'] * cloud_speed_multiplier
-        time_seconds = pygame.time.get_ticks() / 1000
-        amplitude = 10
-        frequency = 1
-        vertical_offset = amplitude * math.sin(2 * math.pi * frequency * time_seconds + cloud['phase'])
+        time_seconds = now / 1000
+        vertical_offset = 10 * math.sin(2 * math.pi * time_seconds + cloud['phase'])
         cloud['rect'].y = cloud['base_y'] + vertical_offset
         if cloud['speed'] > 0 and cloud['rect'].left > WIDTH:
             clouds.remove(cloud)
@@ -248,9 +256,10 @@ while True:
 
     for petal in petals[:]:
         petal['rect'].y += petal_fall_speed * petal_speed_multiplier
-        sway = 15 * math.sin(0.5 * pygame.time.get_ticks() / 1000 + petal['phase'])
+        sway = 15 * math.sin(0.5 * now / 1000 + petal['phase'])
+        time_since_spawn = (now - petal['spawn_time']) / 1000
         drift_speed = 0.5 * petal_speed_multiplier
-        petal['rect'].x = petal['base_x'] + sway + petal['drift'] * petal_speed_multiplier + drift_speed * (pygame.time.get_ticks() / 16)
+        petal['rect'].x = petal['base_x'] + sway + petal['drift'] * petal_speed_multiplier + drift_speed * time_since_spawn * 60
         if petal['rect'].top > HEIGHT:
             petals.remove(petal)
 
@@ -283,7 +292,6 @@ while True:
         for obj in objects[:]:
             obj['rect'].y += sushi_fall_speed
             horizontal_overlap = obj['rect'].right > cat_rect.left and obj['rect'].left < cat_rect.right
-
             if horizontal_overlap and obj['rect'].bottom >= tuna_mid_y:
                 if obj['wasabi']:
                     meow_sound.play()
@@ -315,7 +323,7 @@ while True:
         screen.blit(cloud_img, cloud['rect'])
 
     for petal in petals:
-        screen.blit(petal_img, petal['rect'])
+        screen.blit(petal['img'], petal['rect'])
 
     screen.blit(cat_img, cat_rect)
 
