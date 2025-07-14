@@ -63,6 +63,6 @@ Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Control
 ```
 python3 maguro-game.py
 
-Movement: A (Move Left - Keyboard),D (Move Right - Keyboard) or Direction-pad (Controller)
+Movement: A (Move Left - Keyboard),D (Move Right - Keyboard) or Joy-pad (Controller)
 Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
 ```
