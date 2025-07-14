@@ -28,7 +28,7 @@ CLOUD_SIZE = (200, 120)
 PETAL_SIZE = (30, 30)
 
 cat_left_base = pygame.image.load("cat-left.png").convert_alpha()
-cat_right_base = pygame.image.load("cat-right.png").convert_alpha()
+cat_right_base = pygame.image.load("cata-right.png").convert_alpha()
 
 cat_left = pygame.transform.smoothscale(cat_left_base, CAT_SIZE)
 cat_right = pygame.transform.smoothscale(cat_right_base, CAT_SIZE)
