@@ -18,6 +18,7 @@ PETAL_SIZE = (30, 30)
 GAME_OVER_DELAY = 3000  # ms
 WASABI_CHANCE = 0.1
 
+
 # Helper Functions
 def quit_game():
     pygame.quit()
@@ -185,11 +186,12 @@ class Game:
         self.chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
         self.meow_sound = pygame.mixer.Sound("audio_meow.mp3")
 
-        # Joystick
-        self.joystick = None
-        if pygame.joystick.get_count() > 0:
-            self.joystick = pygame.joystick.Joystick(0)
-            self.joystick.init()
+        # Joysticks: support multiple joysticks if connected
+        self.joysticks = []
+        for i in range(pygame.joystick.get_count()):
+            joy = pygame.joystick.Joystick(i)
+            joy.init()
+            self.joysticks.append(joy)
 
         # Game entities
         self.cat = Cat(self.cat_right_base, (WIDTH // 2, HEIGHT), 14)
@@ -292,6 +294,8 @@ class Game:
         pygame.mixer.music.unpause()
 
     def run(self):
+        deadzone = 0.2
+
         while True:
             dt = self.clock.tick(60)
             now = pygame.time.get_ticks()
@@ -313,14 +317,15 @@ class Game:
                         quit_game()
                     elif self.game_over and not self.paused:
                         self.reset_game()
-                if self.joystick and event.type == pygame.JOYBUTTONDOWN:
-                    if event.button == 7 or event.button == 6:
+                if event.type == pygame.JOYBUTTONDOWN:
+                    # Find which joystick pressed button
+                    if event.button in [7, 6]:  # Start buttons
                         if not self.game_over:
                             if self.paused:
                                 self.unpause()
                             else:
                                 self.pause(by_controller=True)
-                    elif self.paused and event.button == 2:
+                    elif self.paused and event.button == 2:  # X button to quit while paused
                         quit_game()
                     elif self.game_over and not self.paused:
                         self.reset_game()
@@ -367,7 +372,7 @@ class Game:
                     self.petals.remove(petal)
 
             if not self.game_over:
-                # Handle input
+                # Handle input from keyboard first
                 if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                     move = -1
                     self.cat.facing = "left"
@@ -375,11 +380,30 @@ class Game:
                     move = 1
                     self.cat.facing = "right"
 
-                if self.joystick:
-                    axis = self.joystick.get_axis(0)
-                    if abs(axis) > 0.2:
-                        move = int(axis / abs(axis))  # normalize to -1 or 1
-                        self.cat.facing = "left" if axis < 0 else "right"
+                # Handle input from joysticks
+                for joy in self.joysticks:
+                    # Left stick horizontal axis (usually axis 0)
+                    axis0 = joy.get_axis(0)
+                    # Right stick horizontal axis (usually axis 2)
+                    axis2 = joy.get_axis(2)
+
+                    # Safely check for hats
+                    if joy.get_numhats() > 0:
+                        hat_x, _ = joy.get_hat(0)
+                    else:
+                        hat_x = 0
+
+                    # Only override move if no keyboard input (move==0)
+                    if move == 0:
+                        if abs(axis0) > deadzone:
+                            move = int(axis0 / abs(axis0))
+                            self.cat.facing = "left" if axis0 < 0 else "right"
+                        elif abs(axis2) > deadzone:
+                            move = int(axis2 / abs(axis2))
+                            self.cat.facing = "left" if axis2 < 0 else "right"
+                        elif hat_x != 0:
+                            move = hat_x
+                            self.cat.facing = "left" if hat_x < 0 else "right"
 
                 self.cat.update_image()
                 self.cat.move(move)
