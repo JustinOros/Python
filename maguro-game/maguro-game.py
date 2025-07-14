@@ -17,9 +17,11 @@ PETAL_SIZE = (30, 30)
 GAME_OVER_DELAY = 3000
 WASABI_CHANCE = 0.1
 
+
 def quit_game():
     pygame.quit()
     sys.exit()
+
 
 class Cat:
     def __init__(self, cat_right_img, pos, speed):
@@ -58,6 +60,7 @@ class Cat:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
+
 class Sushi:
     def __init__(self, image, pos, wasabi=False, speed=5):
         self.image = image
@@ -73,6 +76,7 @@ class Sushi:
 
     def off_screen(self):
         return self.rect.top > HEIGHT
+
 
 class Cloud:
     def __init__(self, image, speed_multiplier=1.0):
@@ -102,6 +106,7 @@ class Cloud:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
+
 class Petal:
     def __init__(self, image, pos, petal_toggle, speed_multiplier=1.0):
         self.image = image
@@ -126,6 +131,7 @@ class Petal:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
+
 class Spawner:
     def __init__(self, spawn_interval_ms):
         self.spawn_interval = spawn_interval_ms
@@ -137,14 +143,18 @@ class Spawner:
     def update_spawn_time(self, now):
         self.last_spawn = now
 
+
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode(SCREEN_SIZE, pygame.FULLSCREEN)
         pygame.mouse.set_visible(False)
         pygame.display.set_caption("Maguro!")
+
         self.wallpaper = pygame.image.load("wallpaper.jpg").convert()
         self.wallpaper = pygame.transform.scale(self.wallpaper, SCREEN_SIZE)
+
         self.cat_right_base = pygame.image.load("cat.png").convert_alpha()
+
         self.sushi_images = []
         for i in [1, 2, 4, 3]:
             img = pygame.image.load(f"sushi{i}.png").convert_alpha()
@@ -152,8 +162,12 @@ class Game:
             self.sushi_images.append(img)
         self.wasabi_img = pygame.image.load("wasabi.png").convert_alpha()
         self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, SUSHI_SIZE)
-        self.cloud_img = pygame.transform.smoothscale(pygame.image.load("cloud.png").convert_alpha(), CLOUD_SIZE)
-        self.petal_img = pygame.transform.smoothscale(pygame.image.load("petal.png").convert_alpha(), PETAL_SIZE)
+
+        self.cloud_base = pygame.image.load("cloud.png").convert_alpha()
+        self.cloud_img = pygame.transform.smoothscale(self.cloud_base, CLOUD_SIZE)
+
+        self.petal_base = pygame.image.load("petal.png").convert_alpha()
+        self.petal_img = pygame.transform.smoothscale(self.petal_base, PETAL_SIZE)
         self.petal_img_flipped = pygame.transform.flip(self.petal_img, True, False)
 
         pygame.mixer.music.load("audio_music.mp3")
@@ -161,10 +175,8 @@ class Game:
 
         self.chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
         self.meow_sound = pygame.mixer.Sound("audio_meow.mp3")
-        self.game_start_sound = pygame.mixer.Sound("audio_gamestart.mp3")
-        self.game_start_sound.set_volume(1.0)
-        self.game_over_sound = pygame.mixer.Sound("audio_gameover.mp3")
-        self.game_over_sound.set_volume(1.0)
+        self.start_sound = pygame.mixer.Sound("audio_gamestart.mp3")
+        self.end_sound = pygame.mixer.Sound("audio_gameover.mp3")
 
         self.joysticks = []
         for i in range(pygame.joystick.get_count()):
@@ -177,25 +189,68 @@ class Game:
         self.clouds = []
         self.petals = []
         self.petal_toggle = False
+
         self.sushi_spawner = Spawner(125)
         self.cloud_spawner = Spawner(4000)
         self.petal_spawner = Spawner(200)
+
         self.score = 0
         self.game_over = False
         self.game_over_time = None
         self.paused = False
         self.pause_by_controller = False
+
         self.sushi_fall_speed = 5
         self.cloud_speed_multiplier = 1.0
         self.petal_speed_multiplier = 1.0
+
         self.font = pygame.font.SysFont(None, 48)
         self.small_font = pygame.font.SysFont(None, 32)
+
         self.clock = pygame.time.Clock()
         self.speed_increase_time = pygame.time.get_ticks()
+
         self.intro_start_time = pygame.time.get_ticks()
         self.intro_duration = 3000
         self.show_intro = True
-        self.music_started = False
+
+    def draw_intro_text(self, now):
+        elapsed = now - self.intro_start_time
+        blink_phase = (elapsed // 250) % 4
+        try:
+            font_8bit = pygame.font.Font("font_8bit.otf", 192)
+        except:
+            font_8bit = pygame.font.SysFont(None, 192)
+        try:
+            font_jp = pygame.font.Font("font_notosansjp.ttf", 96)
+        except:
+            font_jp = pygame.font.SysFont(None, 96)
+
+        text_en = "MAGURO"
+        text_jp = "まぐろ"
+
+        color = (255, 255, 255)
+        shadow_color = (0, 0, 0)
+
+        surf_en = font_8bit.render(text_en, True, color)
+        shadow_en = font_8bit.render(text_en, True, shadow_color)
+        rect_en = surf_en.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+        shadow_rect_en = rect_en.copy()
+        shadow_rect_en.x += 6
+        shadow_rect_en.y += 6
+
+        surf_jp = font_jp.render(text_jp, True, color)
+        shadow_jp = font_jp.render(text_jp, True, shadow_color)
+        rect_jp = surf_jp.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 70))
+        shadow_rect_jp = rect_jp.copy()
+        shadow_rect_jp.x += 4
+        shadow_rect_jp.y += 4
+
+        if blink_phase < 2 or elapsed >= self.intro_duration:
+            self.screen.blit(shadow_en, shadow_rect_en)
+            self.screen.blit(surf_en, rect_en)
+            self.screen.blit(shadow_jp, shadow_rect_jp)
+            self.screen.blit(surf_jp, rect_jp)
 
     def draw_text(self, text, pos, color=(255, 255, 255)):
         surf = self.font.render(text, True, color)
@@ -219,26 +274,6 @@ class Game:
             rect = surf.get_rect(center=(WIDTH // 2, y + surf.get_height() // 2))
             self.screen.blit(surf, rect)
             y += surf.get_height() + line_spacing
-
-    def draw_intro_text(self, now):
-        elapsed = now - self.intro_start_time
-        blink_on_duration = 250
-        blink_off_duration = 250
-        total_blink_cycle = blink_on_duration + blink_off_duration
-        blink_cycles = 2
-        if elapsed < blink_cycles * total_blink_cycle:
-            blink_phase = elapsed % total_blink_cycle
-            visible = blink_phase < blink_on_duration
-        elif elapsed < self.intro_duration:
-            visible = True
-        else:
-            self.show_intro = False
-            return
-        if visible:
-            font = pygame.font.SysFont(None, 100)
-            text_surf = font.render("EAT SUSHI!!", True, (255, 255, 255))
-            rect = text_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            self.screen.blit(text_surf, rect)
 
     def spawn_sushi(self):
         x = random.randint(50, WIDTH - 50)
@@ -279,9 +314,7 @@ class Game:
         self.speed_increase_time = now
         self.intro_start_time = now
         self.show_intro = True
-        self.music_started = False
-        pygame.mixer.music.stop()
-        self.game_start_sound.play()
+        self.start_sound.play()
 
     def pause(self, by_controller=False):
         self.paused = True
@@ -294,6 +327,7 @@ class Game:
 
     def run(self):
         deadzone = 0.2
+
         while True:
             dt = self.clock.tick(60)
             now = pygame.time.get_ticks()
@@ -327,6 +361,16 @@ class Game:
                     elif self.game_over and not self.paused:
                         self.reset_game()
 
+            if self.show_intro:
+                self.draw_intro_text(now)
+                if now - self.intro_start_time >= self.intro_duration:
+                    self.show_intro = False
+                    pygame.mixer.music.load("audio_music.mp3")
+                    pygame.mixer.music.set_volume(0.5)
+                    pygame.mixer.music.play(-1)
+                pygame.display.flip()
+                continue
+
             if self.paused:
                 self.draw_centered_text("PAUSED", (255, 255, 255))
                 if self.pause_by_controller:
@@ -338,19 +382,7 @@ class Game:
                 pygame.display.flip()
                 continue
 
-            if self.show_intro:
-                self.draw_intro_text(now)
-                if not self.music_started and not self.show_intro:
-                    pygame.mixer.music.play(-1)
-                    self.music_started = True
-                pygame.display.flip()
-                continue
-
-            if not self.music_started:
-                pygame.mixer.music.play(-1)
-                self.music_started = True
-
-            if not self.game_over and now - self.speed_increase_time > 30000:
+            if now - self.speed_increase_time > 30000:
                 self.sushi_fall_speed += 1
                 self.cloud_speed_multiplier += 0.1
                 self.petal_speed_multiplier += 0.1
@@ -403,13 +435,12 @@ class Game:
                 for sushi in self.sushis[:]:
                     sushi.speed = self.sushi_fall_speed
                     sushi.update(dt)
-
                     horizontal_overlap = sushi.rect.right > self.cat.rect.left and sushi.rect.left < self.cat.rect.right
                     if horizontal_overlap and sushi.rect.bottom >= cat_mid_y:
                         if sushi.wasabi:
                             self.meow_sound.play()
+                            self.end_sound.play()
                             pygame.mixer.music.stop()
-                            self.game_over_sound.play()
                             self.game_over = True
                             self.game_over_time = None
                         else:
@@ -439,6 +470,7 @@ class Game:
                 self.draw_centered_multiline_text([f"Final Score: {self.score}", "Game Over!"], color=(255, 0, 0))
 
             pygame.display.flip()
+
 
 if __name__ == "__main__":
     game = Game()
