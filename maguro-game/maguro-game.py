@@ -175,14 +175,12 @@ class Game:
 
         self.chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
         self.meow_sound = pygame.mixer.Sound("audio_meow.mp3")
-        self.start_sound = pygame.mixer.Sound("audio_gamestart.mp3")
-        self.end_sound = pygame.mixer.Sound("audio_gameover.mp3")
+
+        self.audio_gamestart = pygame.mixer.Sound("audio_gamestart.mp3")
+        self.audio_gameover = pygame.mixer.Sound("audio_gameover.mp3")
 
         self.joysticks = []
-        for i in range(pygame.joystick.get_count()):
-            joy = pygame.joystick.Joystick(i)
-            joy.init()
-            self.joysticks.append(joy)
+        self.refresh_joysticks()
 
         self.cat = Cat(self.cat_right_base, (WIDTH // 2, HEIGHT), 14)
         self.sushis = []
@@ -204,6 +202,8 @@ class Game:
         self.cloud_speed_multiplier = 1.0
         self.petal_speed_multiplier = 1.0
 
+        self.font_8bit = pygame.font.Font("font_8bit.otf", 150)
+        self.font_jp = pygame.font.Font("font_notosansjp.ttf", 64)
         self.font = pygame.font.SysFont(None, 48)
         self.small_font = pygame.font.SysFont(None, 32)
 
@@ -211,46 +211,17 @@ class Game:
         self.speed_increase_time = pygame.time.get_ticks()
 
         self.intro_start_time = pygame.time.get_ticks()
-        self.intro_duration = 3000
         self.show_intro = True
 
-    def draw_intro_text(self, now):
-        elapsed = now - self.intro_start_time
-        blink_phase = (elapsed // 250) % 4
-        try:
-            font_8bit = pygame.font.Font("font_8bit.otf", 192)
-        except:
-            font_8bit = pygame.font.SysFont(None, 192)
-        try:
-            font_jp = pygame.font.Font("font_notosansjp.ttf", 96)
-        except:
-            font_jp = pygame.font.SysFont(None, 96)
-
-        text_en = "MAGURO"
-        text_jp = "まぐろ"
-
-        color = (255, 255, 255)
-        shadow_color = (0, 0, 0)
-
-        surf_en = font_8bit.render(text_en, True, color)
-        shadow_en = font_8bit.render(text_en, True, shadow_color)
-        rect_en = surf_en.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
-        shadow_rect_en = rect_en.copy()
-        shadow_rect_en.x += 6
-        shadow_rect_en.y += 6
-
-        surf_jp = font_jp.render(text_jp, True, color)
-        shadow_jp = font_jp.render(text_jp, True, shadow_color)
-        rect_jp = surf_jp.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 70))
-        shadow_rect_jp = rect_jp.copy()
-        shadow_rect_jp.x += 4
-        shadow_rect_jp.y += 4
-
-        if blink_phase < 2 or elapsed >= self.intro_duration:
-            self.screen.blit(shadow_en, shadow_rect_en)
-            self.screen.blit(surf_en, rect_en)
-            self.screen.blit(shadow_jp, shadow_rect_jp)
-            self.screen.blit(surf_jp, rect_jp)
+    def refresh_joysticks(self):
+        existing_ids = {joy.get_instance_id() for joy in self.joysticks}
+        count = pygame.joystick.get_count()
+        for i in range(count):
+            joy = pygame.joystick.Joystick(i)
+            joy_id = joy.get_instance_id()
+            if joy_id not in existing_ids:
+                joy.init()
+                self.joysticks.append(joy)
 
     def draw_text(self, text, pos, color=(255, 255, 255)):
         surf = self.font.render(text, True, color)
@@ -314,7 +285,6 @@ class Game:
         self.speed_increase_time = now
         self.intro_start_time = now
         self.show_intro = True
-        self.start_sound.play()
 
     def pause(self, by_controller=False):
         self.paused = True
@@ -334,6 +304,8 @@ class Game:
             self.screen.blit(self.wallpaper, (0, 0))
             keys = pygame.key.get_pressed()
             move = 0
+
+            self.refresh_joysticks()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -362,11 +334,28 @@ class Game:
                         self.reset_game()
 
             if self.show_intro:
-                self.draw_intro_text(now)
-                if now - self.intro_start_time >= self.intro_duration:
+                elapsed = now - self.intro_start_time
+                blink_interval = 300
+                total_blinks = 4  # 2 blinks means on/off 4 states total
+                current_blink = elapsed // blink_interval
+                maguro_visible = True
+                if current_blink < total_blinks:
+                    maguro_visible = current_blink % 2 == 0
+                else:
+                    maguro_visible = True
+
+                if maguro_visible:
+                    maguro_surf = self.font_8bit.render("MAGURO", True, (255, 255, 255))
+                    maguro_rect = maguro_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+                    self.screen.blit(maguro_surf, maguro_rect)
+
+                    jp_surf = self.font_jp.render("まぐろ", True, (255, 255, 255))
+                    jp_rect = jp_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60))
+                    self.screen.blit(jp_surf, jp_rect)
+
+                if elapsed >= blink_interval * total_blinks + 500:
                     self.show_intro = False
-                    pygame.mixer.music.load("audio_music.mp3")
-                    pygame.mixer.music.set_volume(0.5)
+                    pygame.mixer.Sound.play(self.audio_gamestart)
                     pygame.mixer.music.play(-1)
                 pygame.display.flip()
                 continue
@@ -419,6 +408,12 @@ class Game:
                 for joy in self.joysticks:
                     axis0 = joy.get_axis(0)
                     axis2 = joy.get_axis(2)
+
+                    if joy.get_numhats() > 0:
+                        hat_x, _ = joy.get_hat(0)
+                    else:
+                        hat_x = 0
+
                     if move == 0:
                         if abs(axis0) > deadzone:
                             move = int(axis0 / abs(axis0))
@@ -435,14 +430,15 @@ class Game:
                 for sushi in self.sushis[:]:
                     sushi.speed = self.sushi_fall_speed
                     sushi.update(dt)
+
                     horizontal_overlap = sushi.rect.right > self.cat.rect.left and sushi.rect.left < self.cat.rect.right
                     if horizontal_overlap and sushi.rect.bottom >= cat_mid_y:
                         if sushi.wasabi:
                             self.meow_sound.play()
-                            self.end_sound.play()
-                            pygame.mixer.music.stop()
                             self.game_over = True
                             self.game_over_time = None
+                            pygame.mixer.music.stop()
+                            pygame.mixer.Sound.play(self.audio_gameover)
                         else:
                             self.score += 1
                             self.chomp_sound.play()
@@ -450,6 +446,7 @@ class Game:
                         self.sushis.remove(sushi)
                     elif sushi.off_screen():
                         self.sushis.remove(sushi)
+
             else:
                 if self.game_over_time is None:
                     self.game_over_time = now
