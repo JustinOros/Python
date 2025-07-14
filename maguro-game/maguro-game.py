@@ -22,6 +22,7 @@ clock = pygame.time.Clock()
 CAT_SIZE = [160, 160]
 SUSHI_SIZE = (50, 50)
 CLOUD_SIZE = (200, 120)
+PETAL_SIZE = (30, 30)
 
 cat_left_base = pygame.image.load("tuna-left.png").convert_alpha()
 cat_right_base = pygame.image.load("tuna-right.png").convert_alpha()
@@ -40,6 +41,9 @@ wasabi_img = pygame.transform.smoothscale(wasabi_img, SUSHI_SIZE)
 
 cloud_base = pygame.image.load("cloud.png").convert_alpha()
 cloud_img = pygame.transform.smoothscale(cloud_base, CLOUD_SIZE)
+
+petal_base = pygame.image.load("petal.png").convert_alpha()
+petal_img = pygame.transform.smoothscale(petal_base, PETAL_SIZE)
 
 chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
 meow_sound = pygame.mixer.Sound("audio_meow.mp3")
@@ -72,6 +76,12 @@ cloud_spawn_interval = 4000
 last_cloud_spawn = 0
 cloud_speed_multiplier = 1.0
 
+petals = []
+petal_spawn_interval = 200
+last_petal_spawn = 0
+petal_fall_speed = 3
+petal_speed_multiplier = 1.0
+
 start_time = pygame.time.get_ticks()
 speed_increase_time = start_time
 
@@ -99,7 +109,7 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right, clouds, last_cloud_spawn, cloud_speed_multiplier
+    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right, clouds, last_cloud_spawn, cloud_speed_multiplier, petals, last_petal_spawn, petal_fall_speed, petal_speed_multiplier
     score = 0
     objects = []
     game_over = False
@@ -116,8 +126,12 @@ def reset_game():
     cat_rect.bottom = HEIGHT
     sushi_fall_speed = 5
     clouds.clear()
-    last_cloud_spawn = pygame.time.get_ticks() - cloud_spawn_interval
+    last_cloud_spawn = pygame.time.get_ticks() - 4000
     cloud_speed_multiplier = 1.0
+    petals.clear()
+    last_petal_spawn = pygame.time.get_ticks() - petal_spawn_interval
+    petal_fall_speed = 3
+    petal_speed_multiplier = 1.0
     start_time = pygame.time.get_ticks()
     speed_increase_time = start_time
 
@@ -140,6 +154,14 @@ def spawn_cloud():
     rect = cloud_img.get_rect(topleft=(x, y))
     phase = random.uniform(0, 2 * math.pi)
     clouds.append({'rect': rect, 'speed': speed, 'base_y': y, 'phase': phase})
+
+def spawn_petal():
+    x = random.randint(0, WIDTH)
+    y = -PETAL_SIZE[1]
+    rect = petal_img.get_rect(topleft=(x, y))
+    horizontal_drift = random.uniform(-0.5, 0.5)
+    phase = random.uniform(0, 2 * math.pi)
+    petals.append({'rect': rect, 'drift': horizontal_drift, 'base_x': x, 'phase': phase})
 
 reset_game()
 last_spawn = pygame.time.get_ticks()
@@ -201,11 +223,16 @@ while True:
     if now - speed_increase_time > 30000:
         sushi_fall_speed += 1
         cloud_speed_multiplier += 0.1
+        petal_speed_multiplier += 0.1
         speed_increase_time = now
 
     if now - last_cloud_spawn > cloud_spawn_interval:
         spawn_cloud()
         last_cloud_spawn = now
+
+    if now - last_petal_spawn > petal_spawn_interval:
+        spawn_petal()
+        last_petal_spawn = now
 
     for cloud in clouds[:]:
         cloud['rect'].x += cloud['speed'] * cloud_speed_multiplier
@@ -214,11 +241,18 @@ while True:
         frequency = 1
         vertical_offset = amplitude * math.sin(2 * math.pi * frequency * time_seconds + cloud['phase'])
         cloud['rect'].y = cloud['base_y'] + vertical_offset
-
         if cloud['speed'] > 0 and cloud['rect'].left > WIDTH:
             clouds.remove(cloud)
         elif cloud['speed'] < 0 and cloud['rect'].right < 0:
             clouds.remove(cloud)
+
+    for petal in petals[:]:
+        petal['rect'].y += petal_fall_speed * petal_speed_multiplier
+        sway = 15 * math.sin(0.5 * pygame.time.get_ticks() / 1000 + petal['phase'])
+        drift_speed = 0.5 * petal_speed_multiplier
+        petal['rect'].x = petal['base_x'] + sway + petal['drift'] * petal_speed_multiplier + drift_speed * (pygame.time.get_ticks() / 16)
+        if petal['rect'].top > HEIGHT:
+            petals.remove(petal)
 
     if not game_over:
         if keys[pygame.K_a]:
@@ -279,6 +313,9 @@ while True:
 
     for cloud in clouds:
         screen.blit(cloud_img, cloud['rect'])
+
+    for petal in petals:
+        screen.blit(petal_img, petal['rect'])
 
     screen.blit(cat_img, cat_rect)
 
