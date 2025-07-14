@@ -16,7 +16,7 @@ pygame.mouse.set_visible(False)
 info = pygame.display.Info()
 WIDTH, HEIGHT = info.current_w, info.current_h
 
-pygame.display.set_caption("Cat Catcher")
+pygame.display.set_caption("Maguro!")
 clock = pygame.time.Clock()
 
 wallpaper = pygame.image.load("wallpaper.jpg").convert()
