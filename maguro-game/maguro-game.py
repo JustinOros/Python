@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys
+import math
 
 pygame.init()
 pygame.mixer.init()
@@ -20,6 +21,7 @@ clock = pygame.time.Clock()
 
 CAT_SIZE = [160, 160]
 SUSHI_SIZE = (50, 50)
+CLOUD_SIZE = (200, 120)
 
 cat_left_base = pygame.image.load("tuna-left.png").convert_alpha()
 cat_right_base = pygame.image.load("tuna-right.png").convert_alpha()
@@ -35,6 +37,9 @@ for i in [1, 2, 4, 5]:
 
 wasabi_img = pygame.image.load("sushi3.png").convert_alpha()
 wasabi_img = pygame.transform.smoothscale(wasabi_img, SUSHI_SIZE)
+
+cloud_base = pygame.image.load("cloud.png").convert_alpha()
+cloud_img = pygame.transform.smoothscale(cloud_base, CLOUD_SIZE)
 
 chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
 meow_sound = pygame.mixer.Sound("audio_meow.mp3")
@@ -61,6 +66,11 @@ pause_by_controller = False
 sushi_fall_speed = 5
 sushi_interval = 125
 objects = []
+
+clouds = []
+cloud_spawn_interval = 4000
+last_cloud_spawn = 0
+cloud_speed_multiplier = 1.0
 
 start_time = pygame.time.get_ticks()
 speed_increase_time = start_time
@@ -89,7 +99,7 @@ def draw_centered_multiline_text(lines, color=(255,255,255), line_spacing=10):
         y += surf.get_height() + line_spacing
 
 def reset_game():
-    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right
+    global score, objects, game_over, cat_rect, cat_img, cat_facing, game_over_time, paused, pause_by_controller, start_time, speed_increase_time, sushi_fall_speed, CAT_SIZE, cat_left, cat_right, clouds, last_cloud_spawn, cloud_speed_multiplier
     score = 0
     objects = []
     game_over = False
@@ -105,6 +115,9 @@ def reset_game():
     cat_rect.centerx = WIDTH // 2
     cat_rect.bottom = HEIGHT
     sushi_fall_speed = 5
+    clouds.clear()
+    last_cloud_spawn = pygame.time.get_ticks() - cloud_spawn_interval
+    cloud_speed_multiplier = 1.0
     start_time = pygame.time.get_ticks()
     speed_increase_time = start_time
 
@@ -114,6 +127,19 @@ def spawn_sushi():
     img = wasabi_img if is_wasabi else random.choice(sushi_imgs)
     rect = img.get_rect(midtop=(x, -40))
     objects.append({'img': img, 'rect': rect, 'wasabi': is_wasabi})
+
+def spawn_cloud():
+    y = 50
+    direction = random.choice(["left_to_right", "right_to_left"])
+    if direction == "left_to_right":
+        x = -CLOUD_SIZE[0]
+        speed = 1.5
+    else:
+        x = WIDTH + CLOUD_SIZE[0]
+        speed = -1.5
+    rect = cloud_img.get_rect(topleft=(x, y))
+    phase = random.uniform(0, 2 * math.pi)
+    clouds.append({'rect': rect, 'speed': speed, 'base_y': y, 'phase': phase})
 
 reset_game()
 last_spawn = pygame.time.get_ticks()
@@ -174,7 +200,25 @@ while True:
 
     if now - speed_increase_time > 30000:
         sushi_fall_speed += 1
+        cloud_speed_multiplier += 0.1
         speed_increase_time = now
+
+    if now - last_cloud_spawn > cloud_spawn_interval:
+        spawn_cloud()
+        last_cloud_spawn = now
+
+    for cloud in clouds[:]:
+        cloud['rect'].x += cloud['speed'] * cloud_speed_multiplier
+        time_seconds = pygame.time.get_ticks() / 1000
+        amplitude = 10
+        frequency = 1
+        vertical_offset = amplitude * math.sin(2 * math.pi * frequency * time_seconds + cloud['phase'])
+        cloud['rect'].y = cloud['base_y'] + vertical_offset
+
+        if cloud['speed'] > 0 and cloud['rect'].left > WIDTH:
+            clouds.remove(cloud)
+        elif cloud['speed'] < 0 and cloud['rect'].right < 0:
+            clouds.remove(cloud)
 
     if not game_over:
         if keys[pygame.K_a]:
@@ -232,6 +276,9 @@ while True:
         elif now - game_over_time >= 3000:
             pygame.quit()
             sys.exit()
+
+    for cloud in clouds:
+        screen.blit(cloud_img, cloud['rect'])
 
     screen.blit(cat_img, cat_rect)
 
