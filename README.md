@@ -50,11 +50,19 @@ python3 matrix-screensaver.py
 python3 sushi-screensaver.py
 ```
 ### blockwars-game.py
-`A simple game written in Python.`
+`Red vs Blue blocks.`
 ```
 python3 blockwars-game.py
 
 Movement: W,A,S,D (Keyboard) or Direction-pad (Controller)
 Fire: Spacebar (Keyboard) or Primary-Click (Mouse) or A-button (Controller)
+Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
+```
+### maguro-game.py
+`Maguro The Cat eats sushi.`
+```
+python3 maguro-game.py
+
+Movement: A (Move Left - Keyboard),D (Move Right - Keyboard) or Direction-pad (Controller)
 Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
 ```
