@@ -3,7 +3,13 @@ import random
 import sys
 
 pygame.init()
+pygame.mixer.init()
 pygame.joystick.init()
+
+# Load and play background music
+pygame.mixer.music.load("audio_music.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)  # Loop forever
 
 screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
@@ -30,6 +36,8 @@ for i in [1, 2, 4, 5]:
 
 wasabi_img = pygame.image.load("sushi3.png").convert_alpha()
 wasabi_img = pygame.transform.smoothscale(wasabi_img, SUSHI_SIZE)
+
+chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
 
 joystick = None
 if pygame.joystick.get_count() > 0:
@@ -125,6 +133,10 @@ while True:
             if event.key == pygame.K_ESCAPE:
                 if not exploding and not game_over:
                     paused = not paused
+                    if paused:
+                        pygame.mixer.music.pause()
+                    else:
+                        pygame.mixer.music.unpause()
             elif event.key == pygame.K_q:
                 pygame.quit()
                 sys.exit()
@@ -134,6 +146,10 @@ while True:
             if event.button == 7 or event.button == 6:
                 if not exploding and not game_over:
                     paused = not paused
+                    if paused:
+                        pygame.mixer.music.pause()
+                    else:
+                        pygame.mixer.music.unpause()
             elif paused and event.button == 2:
                 pygame.quit()
                 sys.exit()
@@ -196,6 +212,7 @@ while True:
                     explode_start = None
                 else:
                     score += 1
+                    chomp_sound.play()
                     mid_x = cat_rect.centerx
                     CAT_SIZE[0] += 1
                     CAT_SIZE[1] += 1
