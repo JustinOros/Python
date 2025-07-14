@@ -38,6 +38,7 @@ wasabi_img = pygame.image.load("sushi3.png").convert_alpha()
 wasabi_img = pygame.transform.smoothscale(wasabi_img, SUSHI_SIZE)
 
 chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
+meow_sound = pygame.mixer.Sound("audio_meow.mp3")
 
 joystick = None
 if pygame.joystick.get_count() > 0:
@@ -208,6 +209,7 @@ while True:
 
             if horizontal_overlap and obj['rect'].bottom >= tuna_mid_y:
                 if obj['wasabi']:
+                    meow_sound.play()
                     exploding = True
                     explode_start = None
                 else:
