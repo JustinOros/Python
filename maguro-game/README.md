@@ -1,4 +1,4 @@
-# <h1 align="center">🍣🐱🍣 MAGURO CAT GAME 🍣🐱🍣
+# <h1 align="center">🍣🐱 MAGURO CAT GAME 🐱🍣
 
 ![Maguro Screenshot](screenshot_maguro.png)
 
@@ -31,7 +31,7 @@ As time progresses, objects fall faster, raising the stakes!
 
 * **Move Left / Right:** Left Stick, Right Stick
 * **Pause / Unpause:** `Start`
-* **Quit Game:** `Start` + `X`
+* **Quit Game:** `Start` then `X`
 
 ---
 
@@ -44,8 +44,6 @@ As time progresses, objects fall faster, raising the stakes!
 * Growing cat mechanic
 * Randomized sushi visuals and falling edamame
 * Peaceful petals and drifting clouds
-* Japanese/English title card with retro fonts
-* Game Over screen with prompt to try again
 
 ---
 
