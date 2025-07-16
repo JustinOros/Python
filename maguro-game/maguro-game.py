@@ -11,7 +11,8 @@ WIDTH, HEIGHT = pygame.display.Info().current_w, pygame.display.Info().current_h
 SCREEN_SIZE = (WIDTH, HEIGHT)
 CAT_INITIAL_SIZE = [160, 160]
 CAT_MAX_SIZE = [320, 320]
-SUSHI_SIZE = (50, 50)
+SUSHI_SIZE = (75, 75)
+WASABI_SIZE = (100,100)
 CLOUD_SIZE = (200, 120)
 PETAL_SIZE = (30, 30)
 GAME_OVER_DELAY = 3000
@@ -174,7 +175,7 @@ class Game:
             self.sushi_images.append(img)
 
         self.wasabi_img = pygame.image.load("image_wasabi.png").convert_alpha()
-        self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, SUSHI_SIZE)
+        self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, WASABI_SIZE)
 
         self.cloud_base = pygame.image.load("image_cloud.png").convert_alpha()
         self.cloud_img = pygame.transform.smoothscale(self.cloud_base, CLOUD_SIZE)
