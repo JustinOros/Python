@@ -29,11 +29,9 @@ As time progresses, objects fall faster, raising the stakes!
 
 ### Controller (Optional)
 
-* **Move Left / Right:** Left Stick, Right Stick, or D-Pad
-* **Pause / Unpause:** `Start` (Button 7 or 6)
-* **Quit Game:** `X` (Button 2 on many controllers)
-
-When paused, different messages are shown depending on your input method.
+* **Move Left / Right:** Left Stick, Right Stick
+* **Pause / Unpause:** `Start`
+* **Quit Game:** `Start` + `X`
 
 ---
 
