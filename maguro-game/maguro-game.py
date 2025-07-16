@@ -185,6 +185,11 @@ class Game:
 
         self.edamame_img = pygame.image.load("image_edamame.png").convert_alpha()
         self.edamame_img = pygame.transform.smoothscale(self.edamame_img, SUSHI_SIZE)
+        
+        self.grumpy_img = pygame.transform.smoothscale(
+          pygame.image.load("image_grumpy.png").convert_alpha(),
+          (200, 200)
+        )
 
         self.music_file = "audio_music.mp3"
         self.chomp_sounds = [
@@ -474,6 +479,10 @@ class Game:
             if self.game_over:
                 big_font = pygame.font.Font(None, 96)
                 small_font = pygame.font.Font(None, 32)
+
+                grumpy_rect = self.grumpy_img.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 160))
+                self.screen.blit(self.grumpy_img, grumpy_rect)
+
                 self.draw_centered_multiline_text(["GAME OVER"], color=(255, 0, 0), font=big_font, line_spacing=0)
                 game_over_surf = big_font.render("GAME OVER", True, (255, 0, 0))
                 x_center = WIDTH // 2
