@@ -1,5 +1,7 @@
 # 🍣🐱🍣 MAGURO CAT GAME 🍣🐱🍣
 
+![Maguro Screenshot](screenshot_maguro.png)
+
 **Maguro Cat Game** is a whimsical arcade-style game where you play as a sushi-loving cat! Catch delicious sushi, avoid the dreaded wasabi, and grow bigger with every bite. A soothing soundtrack and drifting petals set the tone for this cute yet challenging experience.
 
 ---
