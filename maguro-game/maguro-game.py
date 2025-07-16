@@ -314,7 +314,9 @@ class Game:
                 if event.type == pygame.QUIT:
                     quit_game()
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
+                    if self.game_over:
+                        self.reset_game()
+                    elif event.key == pygame.K_ESCAPE:
                         if not self.game_over and not self.show_intro:
                             if self.paused:
                                 self.unpause()
@@ -323,7 +325,9 @@ class Game:
                     elif event.key == pygame.K_q:
                         quit_game()
                 if event.type == pygame.JOYBUTTONDOWN:
-                    if event.button in [7, 6]:
+                    if self.game_over:
+                        self.reset_game()
+                    elif event.button in [7, 6]:
                         if not self.game_over and not self.show_intro:
                             if self.paused:
                                 self.unpause()
@@ -331,8 +335,6 @@ class Game:
                                 self.pause(by_controller=True)
                     elif self.paused and event.button == 2:
                         quit_game()
-                    elif self.game_over and not self.paused:
-                        self.reset_game()
 
             if self.show_intro:
                 if self.draw_intro():
@@ -470,8 +472,15 @@ class Game:
             self.draw_text(f"Score: {self.score}", (10, 10))
 
             if self.game_over:
-              big_font = pygame.font.Font(None, 96)
-              self.draw_centered_multiline_text(["GAME OVER"], color=(255, 0, 0), font=big_font)
+                big_font = pygame.font.Font(None, 96)
+                small_font = pygame.font.Font(None, 32)
+                self.draw_centered_multiline_text(["GAME OVER"], color=(255, 0, 0), font=big_font, line_spacing=0)
+                game_over_surf = big_font.render("GAME OVER", True, (255, 0, 0))
+                x_center = WIDTH // 2
+                y_start = (HEIGHT // 2) + game_over_surf.get_height() // 2 + 20
+                prompt_surf = small_font.render("Press any key to try again!", True, (255, 255, 255))
+                prompt_rect = prompt_surf.get_rect(center=(x_center, y_start + prompt_surf.get_height() // 2))
+                self.screen.blit(prompt_surf, prompt_rect)
 
             pygame.display.flip()
 
@@ -486,8 +495,7 @@ class Game:
 
     def draw_centered_multiline_text(self, lines, color=(255, 255, 255), line_spacing=10, font=None):
         if font is None:
-            font = self.small_font  # fallback to default
-
+            font = self.small_font
         total_height = 0
         rendered_lines = []
         for line in lines:
@@ -495,7 +503,6 @@ class Game:
             rendered_lines.append(surf)
             total_height += surf.get_height() + line_spacing
         total_height -= line_spacing
-
         y = (HEIGHT - total_height) // 2
         for surf in rendered_lines:
             rect = surf.get_rect(center=(WIDTH // 2, y + surf.get_height() // 2))
