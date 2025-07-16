@@ -126,6 +126,25 @@ class Petal:
     def draw(self, surface):
         surface.blit(self.image, self.rect)
 
+class Edamame:
+    def __init__(self, image, pos, speed=4):
+        self.image = image
+        self.rect = self.image.get_rect(midtop=pos)
+        self.speed = speed
+        self.phase = random.uniform(0, 2 * math.pi)
+        self.base_x = self.rect.x
+
+    def update(self, dt, now):
+        self.rect.y += self.speed * dt / 16.67
+        sway = 20 * math.sin(0.005 * now + self.phase)
+        self.rect.x = self.base_x + sway
+
+    def off_screen(self):
+        return self.rect.top > HEIGHT
+
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
+
 class Spawner:
     def __init__(self, spawn_interval_ms):
         self.spawn_interval = spawn_interval_ms
@@ -164,6 +183,9 @@ class Game:
         self.petal_img = pygame.transform.smoothscale(self.petal_base, PETAL_SIZE)
         self.petal_img_flipped = pygame.transform.flip(self.petal_img, True, False)
 
+        self.edamame_img = pygame.image.load("edamame.png").convert_alpha()
+        self.edamame_img = pygame.transform.smoothscale(self.edamame_img, SUSHI_SIZE)
+
         self.music_file = "audio_music.mp3"
         self.chomp_sounds = [
             pygame.mixer.Sound("audio_chomp_low.mp3"),
@@ -175,6 +197,7 @@ class Game:
         self.gameover_sound = pygame.mixer.Sound("audio_gameover.mp3")
         self.paused_sound = pygame.mixer.Sound("audio_paused.mp3")
         self.unpaused_sound = pygame.mixer.Sound("audio_unpaused.mp3")
+        self.oof_sound = pygame.mixer.Sound("audio_oof.mp3")
 
         self.joysticks = []
         self.check_controllers()
@@ -187,6 +210,7 @@ class Game:
         self.sushis = []
         self.clouds = []
         self.petals = []
+        self.edamames = []
 
         self.reset_game()
 
@@ -229,11 +253,19 @@ class Game:
         petal = Petal(image, (x, -PETAL_SIZE[1]), self.petal_toggle, self.petal_speed_multiplier)
         self.petals.append(petal)
 
+    def spawn_edamame(self):
+        x = random.randint(50, WIDTH - 50)
+        flipped = random.choice([True, False])
+        image = pygame.transform.flip(self.edamame_img, True, False) if flipped else self.edamame_img
+        edamame = Edamame(image, (x, -40), speed=self.edamame_fall_speed)
+        self.edamames.append(edamame)
+
     def reset_game(self):
         self.score = 0
         self.sushis.clear()
         self.clouds.clear()
         self.petals.clear()
+        self.edamames.clear()
         self.petal_toggle = False
         self.game_over = False
         self.game_over_time = None
@@ -242,10 +274,12 @@ class Game:
         self.sushi_fall_speed = 5
         self.cloud_speed_multiplier = 1.0
         self.petal_speed_multiplier = 1.0
+        self.edamame_fall_speed = 4
         self.cat = Cat(self.cat_right_base, (WIDTH // 2, HEIGHT), 14)
         self.sushi_spawner = Spawner(125)
         self.cloud_spawner = Spawner(4000)
         self.petal_spawner = Spawner(200)
+        self.edamame_spawner = Spawner(1500)
         self.speed_increase_time = pygame.time.get_ticks()
         self.intro_start_time = pygame.time.get_ticks()
         self.gamestart_sound.play()
@@ -324,6 +358,7 @@ class Game:
                 self.sushi_fall_speed += 1
                 self.cloud_speed_multiplier += 0.1
                 self.petal_speed_multiplier += 0.1
+                self.edamame_fall_speed += 0.1
                 self.speed_increase_time = now
 
             if self.cloud_spawner.can_spawn(now):
@@ -332,6 +367,9 @@ class Game:
             if self.petal_spawner.can_spawn(now):
                 self.spawn_petal()
                 self.petal_spawner.update_spawn_time(now)
+            if self.edamame_spawner.can_spawn(now):
+                self.spawn_edamame()
+                self.edamame_spawner.update_spawn_time(now)
             if not self.game_over and self.sushi_spawner.can_spawn(now):
                 self.spawn_sushi()
                 self.sushi_spawner.update_spawn_time(now)
@@ -345,6 +383,11 @@ class Game:
                 petal.update(dt, now)
                 if petal.off_screen():
                     self.petals.remove(petal)
+
+            for edamame in self.edamames[:]:
+                edamame.update(dt, now)
+                if edamame.off_screen():
+                    self.edamames.remove(edamame)
 
             if not self.game_over:
                 if keys[pygame.K_a] or keys[pygame.K_LEFT]:
@@ -398,6 +441,18 @@ class Game:
                     elif sushi.off_screen():
                         self.sushis.remove(sushi)
 
+                for edamame in self.edamames[:]:
+                    edamame.speed = self.edamame_fall_speed
+                    edamame.update(dt, now)
+
+                    horizontal_overlap = edamame.rect.right > self.cat.rect.left and edamame.rect.left < self.cat.rect.right
+                    if horizontal_overlap and edamame.rect.bottom >= cat_mid_y:
+                        self.oof_sound.play()
+                        self.score += 1
+                        self.edamames.remove(edamame)
+                    elif edamame.off_screen():
+                        self.edamames.remove(edamame)
+
             else:
                 if self.game_over_time is None:
                     self.game_over_time = now
@@ -411,6 +466,8 @@ class Game:
             self.cat.draw(self.screen)
             for sushi in self.sushis:
                 sushi.draw(self.screen)
+            for edamame in self.edamames:
+                edamame.draw(self.screen)
 
             self.draw_text(f"Score: {self.score}", (10, 10))
 
