@@ -1,1 +1,1 @@
-![Maguro Screenshot](screenshot-maguro.png)
+![Maguro Screenshot](screenshot_maguro.png)
