@@ -1,4 +1,4 @@
-# 🍣🐱🍣 MAGURO CAT GAME 🍣🐱🍣
+# <h1 align="center">🍣🐱🍣 MAGURO CAT GAME 🍣🐱🍣
 
 ![Maguro Screenshot](screenshot_maguro.png)
 
@@ -58,3 +58,4 @@ Run the game using Python (and Pygame):
 ```bash
 python3 maguro-game.py
 ```
+</h1>
