@@ -107,7 +107,7 @@ class Petal:
         self.image = image
         self.rect = self.image.get_rect(topleft=pos)
         self.speed_multiplier = speed_multiplier
-        self.drift = random.uniform(-0.5, 0.5)
+        self.drift = random.uniform(-0.0, 0.1)
         self.phase = random.uniform(0, 2 * math.pi)
         self.base_x = pos[0]
         self.spawn_time = pygame.time.get_ticks()
@@ -117,7 +117,7 @@ class Petal:
         self.rect.y += 3 * self.speed_multiplier * dt / 16.67
         sway = 15 * math.sin(0.5 * now / 1000 + self.phase)
         time_since_spawn = (now - self.spawn_time) / 1000
-        drift_speed = 0.5 * self.speed_multiplier
+        drift_speed = 1.5 * self.speed_multiplier
         self.rect.x = self.base_x + sway + self.drift * self.speed_multiplier + drift_speed * time_since_spawn * 60
 
     def off_screen(self):
