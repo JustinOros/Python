@@ -173,7 +173,7 @@ class Game:
             img = pygame.transform.smoothscale(img, SUSHI_SIZE)
             self.sushi_images.append(img)
 
-        self.wasabi_img = pygame.image.load("image_wasabi.png").convert_alpha()
+        self.wasabi_img = pygame.image.load("wasabi.png").convert_alpha()
         self.wasabi_img = pygame.transform.smoothscale(self.wasabi_img, SUSHI_SIZE)
 
         self.cloud_base = pygame.image.load("image_cloud.png").convert_alpha()
