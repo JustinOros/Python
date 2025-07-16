@@ -162,7 +162,7 @@ class Game:
         pygame.mouse.set_visible(False)
         pygame.display.set_caption("Maguro Cat Game")
 
-        self.wallpaper = pygame.image.load("image_wallpaper.jpg").convert()
+        self.wallpaper = pygame.image.load("image_wallpaper.png").convert()
         self.wallpaper = pygame.transform.scale(self.wallpaper, SCREEN_SIZE)
 
         self.cat_right_base = pygame.image.load("image_cat.png").convert_alpha()
