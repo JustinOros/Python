@@ -165,7 +165,11 @@ class Game:
         self.petal_img_flipped = pygame.transform.flip(self.petal_img, True, False)
 
         self.music_file = "audio_music.mp3"
-        self.chomp_sound = pygame.mixer.Sound("audio_chomp.mp3")
+        self.chomp_sounds = [
+            pygame.mixer.Sound("audio_chomp_low.mp3"),
+            pygame.mixer.Sound("audio_chomp.mp3"),
+            pygame.mixer.Sound("audio_chomp_high.mp3")
+        ]
         self.meow_sound = pygame.mixer.Sound("audio_meow.mp3")
         self.gamestart_sound = pygame.mixer.Sound("audio_gamestart.mp3")
         self.gameover_sound = pygame.mixer.Sound("audio_gameover.mp3")
@@ -388,7 +392,7 @@ class Game:
                             self.game_over_time = None
                         else:
                             self.score += 1
-                            self.chomp_sound.play()
+                            random.choice(self.chomp_sounds).play()
                             self.cat.grow()
                         self.sushis.remove(sushi)
                     elif sushi.off_screen():
