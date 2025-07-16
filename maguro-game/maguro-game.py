@@ -487,7 +487,14 @@ class Game:
                 game_over_surf = big_font.render("GAME OVER", True, (255, 0, 0))
                 x_center = WIDTH // 2
                 y_start = (HEIGHT // 2) + game_over_surf.get_height() // 2 + 20
-                prompt_surf = small_font.render("Press any key to try again!", True, (255, 255, 255))
+                
+                if self.joysticks:
+                  prompt_text = "Press any button to try again!"
+                else:
+                  prompt_text = "Press any key to try again!"
+                prompt_surf = small_font.render(prompt_text, True, (255, 255, 255))
+
+                
                 prompt_rect = prompt_surf.get_rect(center=(x_center, y_start + prompt_surf.get_height() // 2))
                 self.screen.blit(prompt_surf, prompt_rect)
 
