@@ -274,7 +274,7 @@ class Game:
         self.sushi_fall_speed = 5
         self.cloud_speed_multiplier = 1.0
         self.petal_speed_multiplier = 1.0
-        self.edamame_fall_speed = 4
+        self.edamame_fall_speed = 2
         self.cat = Cat(self.cat_right_base, (WIDTH // 2, HEIGHT), 14)
         self.sushi_spawner = Spawner(125)
         self.cloud_spawner = Spawner(4000)
