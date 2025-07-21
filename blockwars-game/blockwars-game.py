@@ -23,7 +23,7 @@ pygame.mouse.set_visible(False)
 
 # Define colors
 WHITE = (255, 255, 255)
-BLUE = (0, 0, 255)
+BLUE = (0, 200, 255)  # Player glow blue
 RED = (255, 0, 0)
 DARK_GRAY = (50, 50, 50)
 
@@ -36,11 +36,11 @@ def load_sound(filename):
         return None
 
 # Load sounds
-GO_SOUND = load_sound("go_sound.wav")
-FIRE_SOUND = load_sound("player_fire_sound.wav")
-DIE_SOUND = load_sound("player_death_sound.wav")
-LEVEL_UP_SOUND = load_sound("level_up_sound.wav")
-ENEMY_DEATH_SOUND = load_sound("enemy_death_sound.wav")
+GO_SOUND = load_sound("audio_go.wav")
+FIRE_SOUND = load_sound("audio_playerfire.wav")
+DIE_SOUND = load_sound("audio_playerdeath.wav")
+LEVEL_UP_SOUND = load_sound("audio_levelup.wav")
+ENEMY_DEATH_SOUND = load_sound("audio_enemydeath.wav")
 EXPLOSION_SOUND = load_sound("explosion_sound.wav")
 
 # Set font for score
@@ -53,13 +53,36 @@ if pygame.joystick.get_count() > 0:
     controller = pygame.joystick.Joystick(0)
     controller.init()
 
+# Draw glowing rectangle ONLY (no solid fill)
+def draw_glow_rect(surf, rect, glow_color, glow_radius):
+    glow_surface = pygame.Surface((rect.width + glow_radius*2, rect.height + glow_radius*2), pygame.SRCALPHA)
+
+    max_glow = int(glow_radius * 0.6)
+    for i in range(max_glow, 0, -1):
+        alpha = int(255 * (i / max_glow) ** 2)
+        glow_rect = pygame.Rect(
+            glow_radius - i,
+            glow_radius - i,
+            rect.width + i * 2,
+            rect.height + i * 2
+        )
+        pygame.draw.rect(
+            glow_surface,
+            glow_color + (alpha,),
+            glow_rect,
+            border_radius=3,
+            width=2
+        )
+
+    surf.blit(glow_surface, (rect.x - glow_radius, rect.y - glow_radius))
+    # No solid rect drawn for glow-only effect
+
 # Player class
 class Player:
     def __init__(self):
         self.x = SCREEN_WIDTH // 2
         self.y = SCREEN_HEIGHT // 2
         self.size = 20
-        self.color = BLUE
         self.speed = 5
         self.direction = None
 
@@ -100,7 +123,8 @@ class Player:
             self.y = 0
 
     def draw(self):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+        rect = pygame.Rect(self.x, self.y, self.size, self.size)
+        draw_glow_rect(screen, rect, BLUE, glow_radius=10)
 
 # Projectile class
 class Projectile:
@@ -108,7 +132,7 @@ class Projectile:
         self.x = x
         self.y = y
         self.size = 5
-        self.color = WHITE
+        self.color = BLUE  # Same as player's glow
         self.speed = 15
         self.direction = direction
 
@@ -125,16 +149,17 @@ class Projectile:
     def draw(self):
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
-# Explosion class
+# Explosion class (color parameter added)
 class Explosion:
-    def __init__(self, x, y):
+    def __init__(self, x, y, color=RED):
         self.x = x
         self.y = y
         self.size = 50
         self.lifetime = 10
+        self.color = color
 
     def draw(self):
-        pygame.draw.circle(screen, (255, 165, 0), (self.x, self.y), self.size)
+        pygame.draw.circle(screen, self.color, (self.x, self.y), self.size)
         self.lifetime -= 1
 
     def is_alive(self):
@@ -158,7 +183,6 @@ class Enemy:
             self.y = random.randint(0, SCREEN_HEIGHT - 20)
 
         self.size = 20
-        self.color = RED
         self.speed = speed
 
     def move(self, player_x, player_y):
@@ -172,7 +196,8 @@ class Enemy:
             self.y -= self.speed
 
     def draw(self):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+        rect = pygame.Rect(self.x, self.y, self.size, self.size)
+        draw_glow_rect(screen, rect, RED, glow_radius=10)
 
 # Draw pause screen
 def draw_pause_screen(paused_by_controller):
@@ -216,7 +241,6 @@ def game():
     player_dead = False
     controller_active = False
 
-    # Rumble function now inside game to access controller_active
     def rumble(duration=300, strength=1.0):
         if controller_active and controller and hasattr(controller, "rumble"):
             try:
@@ -248,13 +272,13 @@ def game():
                         if FIRE_SOUND:
                             FIRE_SOUND.play()
             if event.type == pygame.JOYBUTTONDOWN:
-                controller_active = True  # Enable rumble after first controller input
-                if event.button == 7 or event.button == 6:  # Start or Select
+                controller_active = True
+                if event.button == 7 or event.button == 6:
                     paused = not paused
                     paused_by_controller = True
-                elif paused and event.button == 2:  # X button
+                elif paused and event.button == 2:
                     running = False
-                elif not paused and event.button == 0:  # A button
+                elif not paused and event.button == 0:
                     if player.direction:
                         projectiles.append(Projectile(player.x + player.size // 2, player.y + player.size // 2, player.direction))
                         if FIRE_SOUND:
@@ -270,6 +294,19 @@ def game():
             draw_pause_screen(paused_by_controller)
             pygame.display.flip()
             clock.tick(60)
+            continue
+
+        if player_dead:
+            # Draw and update explosions until none remain
+            for explosion in explosions[:]:
+                explosion.draw()
+                if not explosion.is_alive():
+                    explosions.remove(explosion)
+            pygame.display.flip()
+            clock.tick(60)
+            if not explosions:
+                show_final_score(score)
+                running = False
             continue
 
         player.move(keys, joystick_axes)
@@ -291,8 +328,9 @@ def game():
                         DIE_SOUND.play()
                     rumble(duration=1000, strength=1.0)
                     player_dead = True
-                show_final_score(score)
-                running = False
+                    # Add blue explosion at player position
+                    explosions.append(Explosion(player.x + player.size // 2, player.y + player.size // 2, color=BLUE))
+                # Don't exit immediately; let explosion animation play first
 
             for projectile in projectiles[:]:
                 if pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size).colliderect(
@@ -336,7 +374,7 @@ def show_final_score(score):
     screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
-    time.sleep(3)
+    time.sleep(2)  # Display final score for 2 seconds
 
 # Run the game
 if __name__ == "__main__":
