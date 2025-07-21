@@ -1,4 +1,4 @@
-# <h1 align="center">🧱⚔️ CIRCLE WARS ⚔️🧱</h1>
+# <h1 align="center">⚔️ CIRCLE WARS ⚔️</h1>
 
 ![Circle Wars Screenshot](screenshot_circlewars.png)
 
