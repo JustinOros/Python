@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-# Description: blockwars - A simple game written in Python.
-# Usage: python3 blockwars-game.py
+# Description: circlewars - A simple game written in Python.
+# Usage: python3 circlewars-game.py
 # Author: Justin Oros (improved by ChatGPT)
 # Source: https://github.com/JustinOros
 
@@ -466,7 +466,7 @@ def show_final_score(score):
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
 
-    # Instead of time.sleep (which blocks), wait for 2 seconds with event handling
+    # Instead of time.sleep, wait for 2 seconds with event handling
     wait_start = pygame.time.get_ticks()
     waiting = True
     while waiting:
