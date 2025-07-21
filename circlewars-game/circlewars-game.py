@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # Description: circlewars - A simple game written in Python.
 # Usage: python3 circlewars-game.py
-# Author: Justin Oros (improved by ChatGPT)
+# Author: Justin Oros
 # Source: https://github.com/JustinOros
 
 import pygame
