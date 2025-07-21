@@ -22,8 +22,7 @@ pygame.display.set_caption("Circle Wars")  # <-- Renamed here
 pygame.mouse.set_visible(False)
 
 # Define colors
-NEON_BLUE = (0, 200, 255)  # Used for UI text
-BLUE = (0, 200, 255)       # Player glow blue (same as NEON_BLUE)
+BLUE = (0, 200, 255)
 RED = (255, 0, 0)
 DARK_GRAY = (50, 50, 50)
 WHITE = (255, 255, 255)
@@ -247,14 +246,14 @@ def draw_pause_screen(paused_by_controller):
 
     pause_font = pygame.font.SysFont(None, 100)
     instruction_font = pygame.font.SysFont(None, 40)
-    pause_text = pause_font.render("PAUSED", True, NEON_BLUE)
+    pause_text = pause_font.render("PAUSED", True, BLUE)
 
     if paused_by_controller:
         instruction = "Press START to resume or X to Exit."
     else:
         instruction = "Press ESC to resume or Q to Quit."
 
-    instruction_text = instruction_font.render(instruction, True, NEON_BLUE)
+    instruction_text = instruction_font.render(instruction, True, BLUE)
 
     screen.blit(pause_text, (
         SCREEN_WIDTH // 2 - pause_text.get_width() // 2,
@@ -307,12 +306,12 @@ def intro_screen():
         screen.fill(DARK_GRAY)
         
         # Render the title text "CIRCLE WARS"
-        title_text = title_font.render("CIRCLE WARS", True, NEON_BLUE)
+        title_text = title_font.render("CIRCLE WARS", True, BLUE)
         title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
         screen.blit(title_text, title_rect)
         
         # Render the subtitle "Press any key to begin..."
-        subtitle_text = subtitle_font.render("Press any key to begin...", True, NEON_BLUE)
+        subtitle_text = subtitle_font.render("Press any key to begin...", True, BLUE)
         subtitle_rect = subtitle_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40))
         screen.blit(subtitle_text, subtitle_rect)
 
@@ -503,8 +502,8 @@ def game():
         if mouse_active:
             draw_crosshair(screen, pygame.mouse.get_pos())
 
-        score_text = font.render(f"Score: {score}", True, NEON_BLUE)
-        level_text = font.render(f"Level: {level}", True, NEON_BLUE)
+        score_text = font.render(f"Score: {score}", True, BLUE)
+        level_text = font.render(f"Level: {level}", True, BLUE)
         screen.blit(score_text, (10, 10))
         screen.blit(level_text, (SCREEN_WIDTH - level_text.get_width() - 10, 10))
 
