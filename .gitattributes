@@ -1,0 +1,11 @@
+# Force GitHub to detect the project as Python
+*.py linguist-language=Python
+
+# Treat HTML files as generated (if any exist)
+*.html linguist-generated=true
+
+# Ignore README, image, and license files from language stats
+README.md linguist-documentation
+*.png linguist-generated=true
+*.jpg linguist-generated=true
+LICENSE linguist-documentation
