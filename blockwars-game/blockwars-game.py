@@ -48,6 +48,15 @@ LEVEL_UP_SOUND = load_sound("audio_levelup.wav")
 ENEMY_DEATH_SOUND = load_sound("audio_enemydeath.wav")
 EXPLOSION_SOUND = load_sound("explosion_sound.wav")
 
+# Load background music (pygame.mixer.music)
+if os.path.exists("audio_music.mp3"):
+    try:
+        pygame.mixer.music.load("audio_music.mp3")
+    except Exception as e:
+        print(f"Error loading background music: {e}")
+else:
+    print("Warning: audio_music.mp3 not found. Background music disabled.")
+
 # Set font for score
 font = pygame.font.SysFont(None, 30)
 
@@ -277,6 +286,13 @@ def game():
                 controller.rumble(strength, strength, duration)
             except Exception as e:
                 print(f"Rumble error: {e}")
+
+    # Start background music looping infinitely
+    if pygame.mixer.music.get_busy() == False:
+        try:
+            pygame.mixer.music.play(-1)  # -1 means loop indefinitely
+        except Exception as e:
+            print(f"Failed to play background music: {e}")
 
     if GO_SOUND:
         GO_SOUND.play()
