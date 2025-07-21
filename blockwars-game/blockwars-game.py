@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # Description: blockwars - A simple game written in Python.
 # Usage: python3 blockwars-game.py
-# Author: Justin Oros
+# Author: Justin Oros (improved by ChatGPT)
 # Source: https://github.com/JustinOros
 
 import pygame
@@ -22,10 +22,15 @@ pygame.display.set_caption("Block Wars")
 pygame.mouse.set_visible(False)
 
 # Define colors
-NEON_BLUE = (0, 200, 255)
-BLUE = (0, 200, 255)  # Player glow blue
+NEON_BLUE = (0, 200, 255)  # Used for UI text
+BLUE = (0, 200, 255)       # Player glow blue (same as NEON_BLUE)
 RED = (255, 0, 0)
 DARK_GRAY = (50, 50, 50)
+
+# Define constants
+PLAYER_SIZE = 20
+ENEMY_SIZE = 20
+PROJECTILE_SIZE = 5
 
 # Function to load sound safely
 def load_sound(filename):
@@ -79,37 +84,52 @@ class Player:
     def __init__(self):
         self.x = SCREEN_WIDTH // 2
         self.y = SCREEN_HEIGHT // 2
-        self.size = 20
+        self.size = PLAYER_SIZE
         self.speed = 3  # Start speed will be set in game()
         self.direction = None
 
     def move(self, keys, joystick_axes):
-        if joystick_axes[1] < -0.5:
-            self.y -= self.speed
-            self.direction = 'up'
-        elif joystick_axes[1] > 0.5:
-            self.y += self.speed
-            self.direction = 'down'
+        # Determine movement vector first
+        move_x, move_y = 0, 0
+
+        # Joystick movement (prioritize joystick over keyboard)
         if joystick_axes[0] < -0.5:
-            self.x -= self.speed
-            self.direction = 'left'
+            move_x = -self.speed
         elif joystick_axes[0] > 0.5:
-            self.x += self.speed
-            self.direction = 'right'
+            move_x = self.speed
 
-        if keys[pygame.K_w]:
-            self.y -= self.speed
-            self.direction = 'up'
-        if keys[pygame.K_s]:
-            self.y += self.speed
-            self.direction = 'down'
-        if keys[pygame.K_a]:
-            self.x -= self.speed
+        if joystick_axes[1] < -0.5:
+            move_y = -self.speed
+        elif joystick_axes[1] > 0.5:
+            move_y = self.speed
+
+        # Keyboard movement (only if joystick not active)
+        if move_x == 0 and move_y == 0:
+            if keys[pygame.K_a]:
+                move_x = -self.speed
+            elif keys[pygame.K_d]:
+                move_x = self.speed
+
+            if keys[pygame.K_w]:
+                move_y = -self.speed
+            elif keys[pygame.K_s]:
+                move_y = self.speed
+
+        # Update position
+        self.x += move_x
+        self.y += move_y
+
+        # Determine direction based on last movement
+        if move_x < 0:
             self.direction = 'left'
-        if keys[pygame.K_d]:
-            self.x += self.speed
+        elif move_x > 0:
             self.direction = 'right'
+        elif move_y < 0:
+            self.direction = 'up'
+        elif move_y > 0:
+            self.direction = 'down'
 
+        # Screen wrapping
         if self.x < 0:
             self.x = SCREEN_WIDTH - self.size
         elif self.x > SCREEN_WIDTH - self.size:
@@ -128,7 +148,7 @@ class Projectile:
     def __init__(self, x, y, direction):
         self.x = x
         self.y = y
-        self.size = 5
+        self.size = PROJECTILE_SIZE
         self.color = BLUE
         self.speed = 15
         self.direction = direction
@@ -167,29 +187,27 @@ class Enemy:
     def __init__(self, speed):
         edge = random.choice(["top", "bottom", "left", "right"])
         if edge == "top":
-            self.x = random.randint(0, SCREEN_WIDTH - 20)
+            self.x = random.randint(0, SCREEN_WIDTH - ENEMY_SIZE)
             self.y = 0
         elif edge == "bottom":
-            self.x = random.randint(0, SCREEN_WIDTH - 20)
-            self.y = SCREEN_HEIGHT - 20
+            self.x = random.randint(0, SCREEN_WIDTH - ENEMY_SIZE)
+            self.y = SCREEN_HEIGHT - ENEMY_SIZE
         elif edge == "left":
             self.x = 0
-            self.y = random.randint(0, SCREEN_HEIGHT - 20)
+            self.y = random.randint(0, SCREEN_HEIGHT - ENEMY_SIZE)
         else:
-            self.x = SCREEN_WIDTH - 20
-            self.y = random.randint(0, SCREEN_HEIGHT - 20)
-        self.size = 20
+            self.x = SCREEN_WIDTH - ENEMY_SIZE
+            self.y = random.randint(0, SCREEN_HEIGHT - ENEMY_SIZE)
+        self.size = ENEMY_SIZE
         self.speed = speed
 
     def move(self, player_x, player_y):
-        if self.x < player_x:
-            self.x += self.speed
-        elif self.x > player_x:
-            self.x -= self.speed
-        if self.y < player_y:
-            self.y += self.speed
-        elif self.y > player_y:
-            self.y -= self.speed
+        # Move towards player with normalized speed to avoid diagonal speedup
+        dx = player_x - self.x
+        dy = player_y - self.y
+        dist = max((dx ** 2 + dy ** 2) ** 0.5, 0.001)  # avoid zero division
+        self.x += self.speed * dx / dist
+        self.y += self.speed * dy / dist
 
     def draw(self):
         rect = pygame.Rect(self.x, self.y, self.size, self.size)
@@ -222,6 +240,15 @@ def draw_pause_screen(paused_by_controller):
         SCREEN_HEIGHT // 2 + 30
     ))
 
+# Helper function to fire projectile
+def fire_projectile(player, projectiles):
+    if player.direction:
+        px = player.x + player.size // 2 - PROJECTILE_SIZE // 2
+        py = player.y + player.size // 2 - PROJECTILE_SIZE // 2
+        projectiles.append(Projectile(px, py, player.direction))
+        if FIRE_SOUND:
+            FIRE_SOUND.play()
+
 # Main game loop
 def game():
     clock = pygame.time.Clock()
@@ -237,7 +264,7 @@ def game():
     paused = False
     paused_by_controller = False
     player_dead = False
-    controller_active = False
+    controller_active = controller is not None  # Set active if controller connected
 
     def rumble(duration=300, strength=1.0):
         if controller_active and controller and hasattr(controller, "rumble"):
@@ -257,6 +284,7 @@ def game():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused
@@ -264,28 +292,25 @@ def game():
                 elif paused and event.key == pygame.K_q:
                     running = False
                 elif not paused and event.key == pygame.K_SPACE:
-                    if player.direction:
-                        projectiles.append(Projectile(player.x + player.size // 2, player.y + player.size // 2, player.direction))
-                        if FIRE_SOUND:
-                            FIRE_SOUND.play()
+                    fire_projectile(player, projectiles)
+
             if event.type == pygame.JOYBUTTONDOWN:
-                controller_active = True
+                controller_active = True  # Joystick input detected, activate rumble
+                # Button mapping notes:
+                # 7 or 6 = START buttons (pause/resume)
+                # 2 = X button (quit when paused)
+                # 0 = A button (fire projectile)
                 if event.button == 7 or event.button == 6:
                     paused = not paused
                     paused_by_controller = True
                 elif paused and event.button == 2:
                     running = False
                 elif not paused and event.button == 0:
-                    if player.direction:
-                        projectiles.append(Projectile(player.x + player.size // 2, player.y + player.size // 2, player.direction))
-                        if FIRE_SOUND:
-                            FIRE_SOUND.play()
+                    fire_projectile(player, projectiles)
+
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if not paused and event.button == 1:
-                    if player.direction:
-                        projectiles.append(Projectile(player.x + player.size // 2, player.y + player.size // 2, player.direction))
-                        if FIRE_SOUND:
-                            FIRE_SOUND.play()
+                if not paused and event.button == 1:  # Left mouse button
+                    fire_projectile(player, projectiles)
 
         if paused:
             draw_pause_screen(paused_by_controller)
@@ -310,24 +335,33 @@ def game():
         for projectile in projectiles[:]:
             projectile.move()
             projectile.draw()
-            if projectile.x < 0 or projectile.x > SCREEN_WIDTH or projectile.y < 0 or projectile.y > SCREEN_HEIGHT:
+            # Remove projectile if out of screen
+            if (projectile.x < 0 or projectile.x > SCREEN_WIDTH or
+                projectile.y < 0 or projectile.y > SCREEN_HEIGHT):
                 projectiles.remove(projectile)
 
         for enemy in enemies[:]:
             enemy.move(player.x, player.y)
             enemy.draw()
 
-            if pygame.Rect(player.x, player.y, player.size, player.size).colliderect(pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size)):
+            player_rect = pygame.Rect(player.x, player.y, player.size, player.size)
+            enemy_rect = pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size)
+
+            if player_rect.colliderect(enemy_rect):
                 if not player_dead:
                     if DIE_SOUND:
                         DIE_SOUND.play()
                     rumble(duration=1000, strength=1.0)
                     player_dead = True
-                    explosions.append(Explosion(player.x + player.size // 2, player.y + player.size // 2, color=BLUE))
+                    explosions.append(Explosion(player.x + player.size // 2,
+                                                player.y + player.size // 2,
+                                                color=BLUE))
 
             for projectile in projectiles[:]:
-                if pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size).colliderect(pygame.Rect(projectile.x, projectile.y, projectile.size, projectile.size)):
-                    explosions.append(Explosion(enemy.x + enemy.size // 2, enemy.y + enemy.size // 2))
+                projectile_rect = pygame.Rect(projectile.x, projectile.y, projectile.size, projectile.size)
+                if enemy_rect.colliderect(projectile_rect):
+                    explosions.append(Explosion(enemy.x + enemy.size // 2,
+                                                enemy.y + enemy.size // 2))
                     if ENEMY_DEATH_SOUND:
                         ENEMY_DEATH_SOUND.play()
                     rumble(duration=150, strength=0.5)
@@ -376,7 +410,19 @@ def show_final_score(score):
     screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
-    time.sleep(2)
+
+    # Instead of time.sleep (which blocks), wait for 2 seconds with event handling
+    wait_start = pygame.time.get_ticks()
+    waiting = True
+    while waiting:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                waiting = False
+            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                waiting = False
+        if pygame.time.get_ticks() - wait_start > 2000:
+            waiting = False
+        pygame.time.Clock().tick(30)
 
 if __name__ == "__main__":
     game()
