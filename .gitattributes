@@ -1,12 +1,16 @@
-# Treat all Python files as Python
+# Explicitly set Python files as Python
 *.py linguist-language=Python
 
-# Treat other files as generated or documentation
+# Mark these as documentation or generated (so they don't count toward the primary language)
 *.md linguist-documentation
+*.html linguist-generated
+*.htm linguist-generated
+*.css linguist-generated
+*.js linguist-generated
+*.json linguist-generated
 *.png linguist-generated
 *.jpg linguist-generated
+*.jpeg linguist-generated
 *.gif linguist-generated
 LICENSE linguist-documentation
 
-# Optional: force repo language to Python if all else fails
-*.tex linguist-language=Python
