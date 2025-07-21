@@ -46,7 +46,7 @@ FIRE_SOUND = load_sound("audio_playerfire.wav")
 DIE_SOUND = load_sound("audio_playerdeath.wav")
 LEVEL_UP_SOUND = load_sound("audio_levelup.wav")
 ENEMY_DEATH_SOUND = load_sound("audio_enemydeath.wav")
-EXPLOSION_SOUND = load_sound("explosion_sound.wav")
+EXPLOSION_SOUND = load_sound("audio_playerdeath.wav")
 
 # Load background music (pygame.mixer.music)
 if os.path.exists("audio_music.mp3"):
