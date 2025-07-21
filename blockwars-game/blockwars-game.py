@@ -22,7 +22,7 @@ pygame.display.set_caption("Block Wars")
 pygame.mouse.set_visible(False)
 
 # Define colors
-WHITE = (255, 255, 255)
+NEON_BLUE = (0, 200, 255)
 BLUE = (0, 200, 255)  # Player glow blue
 RED = (255, 0, 0)
 DARK_GRAY = (50, 50, 50)
@@ -204,14 +204,14 @@ def draw_pause_screen(paused_by_controller):
 
     pause_font = pygame.font.SysFont(None, 100)
     instruction_font = pygame.font.SysFont(None, 40)
-    pause_text = pause_font.render("PAUSED", True, WHITE)
+    pause_text = pause_font.render("PAUSED", True, NEON_BLUE)
 
     if paused_by_controller:
         instruction = "Press START to resume or X to Exit."
     else:
         instruction = "Press ESC to resume or Q to Quit."
 
-    instruction_text = instruction_font.render(instruction, True, WHITE)
+    instruction_text = instruction_font.render(instruction, True, NEON_BLUE)
 
     screen.blit(pause_text, (
         SCREEN_WIDTH // 2 - pause_text.get_width() // 2,
@@ -356,8 +356,8 @@ def game():
 
         player.draw()
 
-        score_text = font.render(f"Score: {score}", True, WHITE)
-        level_text = font.render(f"Level: {level}", True, WHITE)
+        score_text = font.render(f"Score: {score}", True, NEON_BLUE)
+        level_text = font.render(f"Level: {level}", True, NEON_BLUE)
         screen.blit(score_text, (10, 10))
         screen.blit(level_text, (SCREEN_WIDTH - level_text.get_width() - 10, 10))
 
@@ -367,12 +367,14 @@ def game():
 # Show final score on death
 def show_final_score(score):
     font_large = pygame.font.SysFont(None, 80)
-    final_score_text = font_large.render(f"Final Score: {score}", True, WHITE)
+    neon_blue = (0, 200, 255)  # Same as player glow blue
+    final_score_text = font_large.render(f"Final Score: {score}", True, neon_blue)
     screen.fill(DARK_GRAY)
     screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
     time.sleep(2)
+
 
 if __name__ == "__main__":
     game()
