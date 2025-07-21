@@ -2,7 +2,7 @@
 
 ![Block Wars Screenshot](screenshot_blockwars.png)
 
-**Block Wars** is a fast-paced, neon-glowing arcade shooter where you control a glowing block battling waves of relentless enemies. Dodge and weave the full-screen arena, blast enemies with directional shots—including diagonals—and survive as long as possible while leveling up!
+**Block Wars** is a fast-paced, neon-glowing arcade shooter where you control a glowing block battling waves of relentless enemies. Dodge and weave the full-screen arena, blast enemies with shots and survive as long as possible while leveling up!
 
 ---
 
@@ -10,7 +10,7 @@
 
 You control a glowing blue block navigating the arena. Your goal is to:
 
-* 🔫 Shoot enemies using keyboard, mouse, or controller — including diagonal shots with joystick!
+* 🔫 Shoot enemies using keyboard, mouse, or controller
 * 🧟 Defeat increasingly faster enemies that chase you relentlessly
 * 🛡️ Dodge collisions — one hit and it’s game over
 * ⏫ Survive waves to level up and increase enemy speed and challenge
@@ -49,7 +49,7 @@ You control a glowing blue block navigating the arena. Your goal is to:
 
 ## 🚀 Getting Started
 
-Run the game using Python 3 and Pygame installed:
+Run the game using Python 3 (and Pygame installed):
 
 ```bash
 python3 blockwars-game.py
