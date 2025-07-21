@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Description: blockwars - A simple game written in Python.
-# Usage: python3 blockwars.py
+# Usage: python3 blockwars-game.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
@@ -367,14 +367,16 @@ def game():
 # Show final score on death
 def show_final_score(score):
     font_large = pygame.font.SysFont(None, 80)
-    neon_blue = (0, 200, 255)  # Same as player glow blue
-    final_score_text = font_large.render(f"Final Score: {score}", True, neon_blue)
+    if score == 0:
+        text = "GAME OVER"
+    else:
+        text = f"Final Score: {score}"
+    final_score_text = font_large.render(text, True, RED)
     screen.fill(DARK_GRAY)
     screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
     time.sleep(2)
-
 
 if __name__ == "__main__":
     game()
