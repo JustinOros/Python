@@ -16,9 +16,9 @@ pygame.init()
 SCREEN_WIDTH = pygame.display.Info().current_w
 SCREEN_HEIGHT = pygame.display.Info().current_h
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
-pygame.display.set_caption("Block Wars")
+pygame.display.set_caption("Circle Wars")  # <-- Renamed here
 
-# Hide mouse cursor
+# Initially hide mouse cursor; will toggle visible when mouse active
 pygame.mouse.set_visible(False)
 
 # Define colors
@@ -26,6 +26,7 @@ NEON_BLUE = (0, 200, 255)  # Used for UI text
 BLUE = (0, 200, 255)       # Player glow blue (same as NEON_BLUE)
 RED = (255, 0, 0)
 DARK_GRAY = (50, 50, 50)
+WHITE = (255, 255, 255)
 
 # Define constants
 PLAYER_SIZE = 20
@@ -67,28 +68,7 @@ if pygame.joystick.get_count() > 0:
     controller = pygame.joystick.Joystick(0)
     controller.init()
 
-# Draw glowing rectangle ONLY (no solid fill) -- KEEP in case you want to revert
-def draw_glow_rect(surf, rect, glow_color, glow_radius):
-    glow_surface = pygame.Surface((rect.width + glow_radius*2, rect.height + glow_radius*2), pygame.SRCALPHA)
-    max_glow = int(glow_radius * 0.6)
-    for i in range(max_glow, 0, -1):
-        alpha = int(255 * (i / max_glow) ** 2)
-        glow_rect = pygame.Rect(
-            glow_radius - i,
-            glow_radius - i,
-            rect.width + i * 2,
-            rect.height + i * 2
-        )
-        pygame.draw.rect(
-            glow_surface,
-            glow_color + (alpha,),
-            glow_rect,
-            border_radius=3,
-            width=2
-        )
-    surf.blit(glow_surface, (rect.x - glow_radius, rect.y - glow_radius))
-
-# NEW: Draw glowing circle ONLY (no solid fill)
+# Draw glowing circle ONLY (no solid fill)
 def draw_glow_circle(surf, center, radius, glow_color, glow_radius):
     glow_surface = pygame.Surface((radius*2 + glow_radius*2, radius*2 + glow_radius*2), pygame.SRCALPHA)
     max_glow = int(glow_radius * 0.6)
@@ -108,6 +88,14 @@ def circles_collide(x1, y1, r1, x2, y2, r2):
     dist_sq = (x1 - x2)**2 + (y1 - y2)**2
     radius_sum_sq = (r1 + r2)**2
     return dist_sq <= radius_sum_sq
+
+# Draw small white crosshair at given position
+def draw_crosshair(surf, pos):
+    size = 10
+    color = WHITE
+    x, y = pos
+    pygame.draw.line(surf, color, (x - size // 2, y), (x + size // 2, y), 2)
+    pygame.draw.line(surf, color, (x, y - size // 2), (x, y + size // 2), 2)
 
 # Player class
 class Player:
@@ -277,16 +265,31 @@ def draw_pause_screen(paused_by_controller):
         SCREEN_HEIGHT // 2 + 30
     ))
 
-# Helper function to fire projectile
-def fire_projectile(player, projectiles):
-    # Use last_direction if no current direction
-    direction = player.direction if player.direction is not None else player.last_direction
-    if direction != (0, 0):
-        px = player.x + player.size // 2 - PROJECTILE_SIZE // 2
-        py = player.y + player.size // 2 - PROJECTILE_SIZE // 2
-        projectiles.append(Projectile(px, py, direction))
-        if FIRE_SOUND:
-            FIRE_SOUND.play()
+# Helper function to fire projectile toward target_pos or fallback to last direction
+def fire_projectile(player, projectiles, target_pos=None):
+    px = player.x + player.size // 2
+    py = player.y + player.size // 2
+
+    if target_pos is None:
+        # fallback: use player.last_direction
+        direction = player.direction if player.direction is not None else player.last_direction
+        dir_x, dir_y = direction
+    else:
+        # Calculate normalized direction vector from player center to target_pos
+        dir_x = target_pos[0] - px
+        dir_y = target_pos[1] - py
+        length = (dir_x ** 2 + dir_y ** 2) ** 0.5
+        if length == 0:
+            return  # no shooting if zero length vector
+        dir_x /= length
+        dir_y /= length
+
+    projectile_start_x = px - PROJECTILE_SIZE // 2
+    projectile_start_y = py - PROJECTILE_SIZE // 2
+    projectiles.append(Projectile(projectile_start_x, projectile_start_y, (dir_x, dir_y)))
+
+    if FIRE_SOUND:
+        FIRE_SOUND.play()
 
 # Main game loop
 def game():
@@ -304,6 +307,11 @@ def game():
     paused_by_controller = False
     player_dead = False
     controller_active = False  # Start assuming keyboard usage
+
+    # Mouse activity tracking for cursor visibility and crosshair
+    MOUSE_INACTIVE_TIMEOUT = 2000  # milliseconds
+    last_mouse_move_time = 0
+    mouse_active = False
 
     def rumble(duration=300, strength=1.0):
         if controller_active and controller and hasattr(controller, "rumble"):
@@ -337,6 +345,11 @@ def game():
             elif event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
                 controller_active = False
 
+            # Track mouse movement for cursor visibility
+            if event.type == pygame.MOUSEMOTION:
+                last_mouse_move_time = pygame.time.get_ticks()
+                mouse_active = True
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused
@@ -361,11 +374,22 @@ def game():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not paused and event.button == 1:  # Left mouse button
-                    fire_projectile(player, projectiles)
+                    if mouse_active:
+                        fire_projectile(player, projectiles, pygame.mouse.get_pos())
+                    else:
+                        fire_projectile(player, projectiles)
 
         # Also check if keyboard movement keys are pressed, set controller_active to False
         if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
             controller_active = False
+
+        # Update mouse cursor visibility based on inactivity timeout
+        current_time = pygame.time.get_ticks()
+        if current_time - last_mouse_move_time > MOUSE_INACTIVE_TIMEOUT:
+            mouse_active = False
+
+        # HIDE the OS cursor ALWAYS to avoid overlap with crosshair
+        pygame.mouse.set_visible(False)
 
         if paused:
             draw_pause_screen(paused_by_controller)
@@ -445,6 +469,10 @@ def game():
 
         player.draw()
 
+        # Draw crosshair if mouse active
+        if mouse_active:
+            draw_crosshair(screen, pygame.mouse.get_pos())
+
         score_text = font.render(f"Score: {score}", True, NEON_BLUE)
         level_text = font.render(f"Level: {level}", True, NEON_BLUE)
         screen.blit(score_text, (10, 10))
@@ -460,27 +488,15 @@ def show_final_score(score):
         text = "GAME OVER"
     else:
         text = f"Final Score: {score}"
-    final_score_text = font_large.render(text, True, RED)
+    # Show it centered
     screen.fill(DARK_GRAY)
-    screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
-                                  SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
+    text_surface = font_large.render(text, True, RED)
+    screen.blit(text_surface, ((SCREEN_WIDTH - text_surface.get_width()) // 2,
+                               (SCREEN_HEIGHT - text_surface.get_height()) // 2))
     pygame.display.flip()
-
-    # Instead of time.sleep, wait for 2 seconds with event handling
-    wait_start = pygame.time.get_ticks()
-    waiting = True
-    while waiting:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                waiting = False
-            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                waiting = False
-        if pygame.time.get_ticks() - wait_start > 2000:
-            waiting = False
-        pygame.time.Clock().tick(30)
+    pygame.time.wait(4000)
 
 if __name__ == "__main__":
     game()
-
-pygame.quit()
+    pygame.quit()
 
