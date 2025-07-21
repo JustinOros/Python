@@ -85,25 +85,24 @@ class Player:
         self.x = SCREEN_WIDTH // 2
         self.y = SCREEN_HEIGHT // 2
         self.size = PLAYER_SIZE
-        self.speed = 3  # Start speed will be set in game()
-        self.direction = None
+        self.speed = 3  # Will be set in game()
+        self.direction = None  # Current movement direction vector (dx, dy)
+        self.last_direction = (0, -1)  # Default facing up
 
     def move(self, keys, joystick_axes):
-        # Determine movement vector first
         move_x, move_y = 0, 0
 
-        # Joystick movement (prioritize joystick over keyboard)
-        if joystick_axes[0] < -0.5:
-            move_x = -self.speed
-        elif joystick_axes[0] > 0.5:
-            move_x = self.speed
+        # Joystick input with deadzone
+        axis_x = joystick_axes[0]
+        axis_y = joystick_axes[1]
+        deadzone = 0.3
 
-        if joystick_axes[1] < -0.5:
-            move_y = -self.speed
-        elif joystick_axes[1] > 0.5:
-            move_y = self.speed
+        if abs(axis_x) > deadzone:
+            move_x = self.speed * (1 if axis_x > 0 else -1)
+        if abs(axis_y) > deadzone:
+            move_y = self.speed * (1 if axis_y > 0 else -1)
 
-        # Keyboard movement (only if joystick not active)
+        # Keyboard input only if joystick inactive this frame
         if move_x == 0 and move_y == 0:
             if keys[pygame.K_a]:
                 move_x = -self.speed
@@ -115,19 +114,8 @@ class Player:
             elif keys[pygame.K_s]:
                 move_y = self.speed
 
-        # Update position
         self.x += move_x
         self.y += move_y
-
-        # Determine direction based on last movement
-        if move_x < 0:
-            self.direction = 'left'
-        elif move_x > 0:
-            self.direction = 'right'
-        elif move_y < 0:
-            self.direction = 'up'
-        elif move_y > 0:
-            self.direction = 'down'
 
         # Screen wrapping
         if self.x < 0:
@@ -139,32 +127,48 @@ class Player:
         elif self.y > SCREEN_HEIGHT - self.size:
             self.y = 0
 
+        # Set current direction vector normalized to -1, 0, or 1 on each axis
+        norm_dx = 0
+        norm_dy = 0
+        if move_x > 0:
+            norm_dx = 1
+        elif move_x < 0:
+            norm_dx = -1
+        if move_y > 0:
+            norm_dy = 1
+        elif move_y < 0:
+            norm_dy = -1
+
+        if norm_dx == 0 and norm_dy == 0:
+            self.direction = None
+        else:
+            self.direction = (norm_dx, norm_dy)
+            self.last_direction = self.direction  # Update last known direction
+
     def draw(self):
         rect = pygame.Rect(self.x, self.y, self.size, self.size)
         draw_glow_rect(screen, rect, BLUE, glow_radius=10)
 
 # Projectile class
 class Projectile:
-    def __init__(self, x, y, direction):
+    def __init__(self, x, y, direction_vector):
         self.x = x
         self.y = y
         self.size = PROJECTILE_SIZE
         self.color = BLUE
         self.speed = 15
-        self.direction = direction
+        self.dir_x, self.dir_y = direction_vector
 
     def move(self):
-        if self.direction == 'up':
-            self.y -= self.speed
-        elif self.direction == 'down':
-            self.y += self.speed
-        elif self.direction == 'left':
-            self.x -= self.speed
-        elif self.direction == 'right':
-            self.x += self.speed
+        # Normalize direction so diagonal speed isn't faster
+        length = (self.dir_x ** 2 + self.dir_y ** 2) ** 0.5
+        if length == 0:
+            return
+        self.x += self.speed * self.dir_x / length
+        self.y += self.speed * self.dir_y / length
 
     def draw(self):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+        pygame.draw.rect(screen, self.color, (int(self.x), int(self.y), self.size, self.size))
 
 # Explosion class
 class Explosion:
@@ -202,10 +206,9 @@ class Enemy:
         self.speed = speed
 
     def move(self, player_x, player_y):
-        # Move towards player with normalized speed to avoid diagonal speedup
         dx = player_x - self.x
         dy = player_y - self.y
-        dist = max((dx ** 2 + dy ** 2) ** 0.5, 0.001)  # avoid zero division
+        dist = max((dx ** 2 + dy ** 2) ** 0.5, 0.001)  # Avoid zero division
         self.x += self.speed * dx / dist
         self.y += self.speed * dy / dist
 
@@ -242,10 +245,12 @@ def draw_pause_screen(paused_by_controller):
 
 # Helper function to fire projectile
 def fire_projectile(player, projectiles):
-    if player.direction:
+    # Use last_direction if no current direction
+    direction = player.direction if player.direction is not None else player.last_direction
+    if direction != (0, 0):
         px = player.x + player.size // 2 - PROJECTILE_SIZE // 2
         py = player.y + player.size // 2 - PROJECTILE_SIZE // 2
-        projectiles.append(Projectile(px, py, player.direction))
+        projectiles.append(Projectile(px, py, direction))
         if FIRE_SOUND:
             FIRE_SOUND.play()
 
