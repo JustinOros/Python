@@ -56,7 +56,6 @@ if pygame.joystick.get_count() > 0:
 # Draw glowing rectangle ONLY (no solid fill)
 def draw_glow_rect(surf, rect, glow_color, glow_radius):
     glow_surface = pygame.Surface((rect.width + glow_radius*2, rect.height + glow_radius*2), pygame.SRCALPHA)
-
     max_glow = int(glow_radius * 0.6)
     for i in range(max_glow, 0, -1):
         alpha = int(255 * (i / max_glow) ** 2)
@@ -73,9 +72,7 @@ def draw_glow_rect(surf, rect, glow_color, glow_radius):
             border_radius=3,
             width=2
         )
-
     surf.blit(glow_surface, (rect.x - glow_radius, rect.y - glow_radius))
-    # No solid rect drawn for glow-only effect
 
 # Player class
 class Player:
@@ -83,7 +80,7 @@ class Player:
         self.x = SCREEN_WIDTH // 2
         self.y = SCREEN_HEIGHT // 2
         self.size = 20
-        self.speed = 5
+        self.speed = 3  # Start speed will be set in game()
         self.direction = None
 
     def move(self, keys, joystick_axes):
@@ -132,7 +129,7 @@ class Projectile:
         self.x = x
         self.y = y
         self.size = 5
-        self.color = BLUE  # Same as player's glow
+        self.color = BLUE
         self.speed = 15
         self.direction = direction
 
@@ -149,7 +146,7 @@ class Projectile:
     def draw(self):
         pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
 
-# Explosion class (color parameter added)
+# Explosion class
 class Explosion:
     def __init__(self, x, y, color=RED):
         self.x = x
@@ -181,7 +178,6 @@ class Enemy:
         else:
             self.x = SCREEN_WIDTH - 20
             self.y = random.randint(0, SCREEN_HEIGHT - 20)
-
         self.size = 20
         self.speed = speed
 
@@ -199,7 +195,7 @@ class Enemy:
         rect = pygame.Rect(self.x, self.y, self.size, self.size)
         draw_glow_rect(screen, rect, RED, glow_radius=10)
 
-# Draw pause screen
+# Pause screen
 def draw_pause_screen(paused_by_controller):
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     overlay.set_alpha(180)
@@ -234,7 +230,9 @@ def game():
     explosions = []
     level = 1
     score = 0
-    enemies = [Enemy(2)]
+    enemy_speed = 2
+    enemies = [Enemy(enemy_speed)]
+    player.speed = enemy_speed + 1  # Player slightly faster than enemies
     running = True
     paused = False
     paused_by_controller = False
@@ -253,7 +251,6 @@ def game():
 
     while running:
         screen.fill(DARK_GRAY)
-
         keys = pygame.key.get_pressed()
         joystick_axes = [controller.get_axis(0), controller.get_axis(1)] if controller else [0, 0]
 
@@ -297,7 +294,6 @@ def game():
             continue
 
         if player_dead:
-            # Draw and update explosions until none remain
             for explosion in explosions[:]:
                 explosion.draw()
                 if not explosion.is_alive():
@@ -321,20 +317,16 @@ def game():
             enemy.move(player.x, player.y)
             enemy.draw()
 
-            if pygame.Rect(player.x, player.y, player.size, player.size).colliderect(
-                    pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size)):
+            if pygame.Rect(player.x, player.y, player.size, player.size).colliderect(pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size)):
                 if not player_dead:
                     if DIE_SOUND:
                         DIE_SOUND.play()
                     rumble(duration=1000, strength=1.0)
                     player_dead = True
-                    # Add blue explosion at player position
                     explosions.append(Explosion(player.x + player.size // 2, player.y + player.size // 2, color=BLUE))
-                # Don't exit immediately; let explosion animation play first
 
             for projectile in projectiles[:]:
-                if pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size).colliderect(
-                        pygame.Rect(projectile.x, projectile.y, projectile.size, projectile.size)):
+                if pygame.Rect(enemy.x, enemy.y, enemy.size, enemy.size).colliderect(pygame.Rect(projectile.x, projectile.y, projectile.size, projectile.size)):
                     explosions.append(Explosion(enemy.x + enemy.size // 2, enemy.y + enemy.size // 2))
                     if ENEMY_DEATH_SOUND:
                         ENEMY_DEATH_SOUND.play()
@@ -353,7 +345,13 @@ def game():
             level += 1
             if LEVEL_UP_SOUND:
                 LEVEL_UP_SOUND.play()
-            enemy_speed = 2 + (level // 3)
+
+            # Increase enemy speed every 2 levels, cap at 8
+            if level % 2 == 0 and enemy_speed < 8:
+                enemy_speed += 1
+
+            player.speed = enemy_speed + 1  # Player stays slightly faster
+
             enemies = [Enemy(enemy_speed) for _ in range(level)]
 
         player.draw()
@@ -366,7 +364,7 @@ def game():
         pygame.display.flip()
         clock.tick(60)
 
-# Function to display the final score on death
+# Show final score on death
 def show_final_score(score):
     font_large = pygame.font.SysFont(None, 80)
     final_score_text = font_large.render(f"Final Score: {score}", True, WHITE)
@@ -374,9 +372,8 @@ def show_final_score(score):
     screen.blit(final_score_text, (SCREEN_WIDTH // 2 - final_score_text.get_width() // 2,
                                   SCREEN_HEIGHT // 2 - final_score_text.get_height() // 2))
     pygame.display.flip()
-    time.sleep(2)  # Display final score for 2 seconds
+    time.sleep(2)
 
-# Run the game
 if __name__ == "__main__":
     game()
 
