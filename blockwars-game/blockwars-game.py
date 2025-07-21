@@ -269,7 +269,7 @@ def game():
     paused = False
     paused_by_controller = False
     player_dead = False
-    controller_active = controller is not None  # Set active if controller connected
+    controller_active = False  # Start assuming keyboard usage
 
     def rumble(duration=300, strength=1.0):
         if controller_active and controller and hasattr(controller, "rumble"):
@@ -290,6 +290,12 @@ def game():
             if event.type == pygame.QUIT:
                 running = False
 
+            # Track input method for rumble control
+            if event.type in [pygame.JOYAXISMOTION, pygame.JOYBUTTONDOWN]:
+                controller_active = True
+            elif event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
+                controller_active = False
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     paused = not paused
@@ -300,7 +306,6 @@ def game():
                     fire_projectile(player, projectiles)
 
             if event.type == pygame.JOYBUTTONDOWN:
-                controller_active = True  # Joystick input detected, activate rumble
                 # Button mapping notes:
                 # 7 or 6 = START buttons (pause/resume)
                 # 2 = X button (quit when paused)
@@ -316,6 +321,10 @@ def game():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if not paused and event.button == 1:  # Left mouse button
                     fire_projectile(player, projectiles)
+
+        # Also check if keyboard movement keys are pressed, set controller_active to False
+        if keys[pygame.K_w] or keys[pygame.K_a] or keys[pygame.K_s] or keys[pygame.K_d]:
+            controller_active = False
 
         if paused:
             draw_pause_screen(paused_by_controller)
