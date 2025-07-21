@@ -80,7 +80,7 @@ def matrix_rain(stdscr, color_mode, timeout=None):
                 current_color = COLOR_NAMES[color_index]
                 next_color = current_color
                 column_colors = [current_color] * len(column_colors)
-            elif key == 3:
+            elif key in (3, 27):  # Ctrl+C or ESC
                 break
 
             sh, sw = stdscr.getmaxyx()
