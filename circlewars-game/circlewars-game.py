@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Description: circlewars - A simple game written in Python.
+# Description: circlewars - A simple game written in Python utilizing Pygame.
 # Usage: python3 circlewars-game.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
@@ -291,6 +291,43 @@ def fire_projectile(player, projectiles, target_pos=None):
     if FIRE_SOUND:
         FIRE_SOUND.play()
 
+# Intro screen
+def intro_screen():
+    # Start background music looping indefinitely if not already playing
+    if not pygame.mixer.music.get_busy():
+        try:
+            pygame.mixer.music.play(-1)  # loop forever
+        except Exception as e:
+            print(f"Failed to play background music: {e}")
+
+    title_font = pygame.font.SysFont(None, 150, bold=True)
+    subtitle_font = pygame.font.SysFont(None, 50)
+    waiting = True
+    while waiting:
+        screen.fill(DARK_GRAY)
+        
+        # Render the title text "CIRCLE WARS"
+        title_text = title_font.render("CIRCLE WARS", True, NEON_BLUE)
+        title_rect = title_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
+        screen.blit(title_text, title_rect)
+        
+        # Render the subtitle "Press any key to begin..."
+        subtitle_text = subtitle_font.render("Press any key to begin...", True, NEON_BLUE)
+        subtitle_rect = subtitle_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40))
+        screen.blit(subtitle_text, subtitle_rect)
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN or event.type == pygame.JOYBUTTONDOWN:
+                waiting = False
+
+        pygame.time.Clock().tick(60)
+
 # Main game loop
 def game():
     clock = pygame.time.Clock()
@@ -319,13 +356,6 @@ def game():
                 controller.rumble(strength, strength, duration)
             except Exception as e:
                 print(f"Rumble error: {e}")
-
-    # Start background music looping infinitely
-    if pygame.mixer.music.get_busy() == False:
-        try:
-            pygame.mixer.music.play(-1)  # -1 means loop indefinitely
-        except Exception as e:
-            print(f"Failed to play background music: {e}")
 
     if GO_SOUND:
         GO_SOUND.play()
@@ -497,6 +527,7 @@ def show_final_score(score):
     pygame.time.wait(4000)
 
 if __name__ == "__main__":
+    intro_screen()
     game()
     pygame.quit()
 
