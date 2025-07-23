@@ -49,10 +49,10 @@ python3 matrix-screensaver.py
 ```
 python3 sushi-screensaver.py
 ```
-### blockwars-game.py
-`Red vs Blue blocks.`
+### circlewars-game.py
+`Red vs Blue circles.`
 ```
-python3 blockwars-game.py
+python3 circlewars-game.py
 
 Movement: W,A,S,D (Keyboard) or Direction-pad (Controller)
 Fire: Spacebar (Keyboard) or Primary-Click (Mouse) or A-button (Controller)
