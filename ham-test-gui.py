@@ -29,8 +29,6 @@ LOCAL_FILES = {
     "Extra": "extra.json"
 }
 
-# Helper functions to sync question files
-
 def get_remote_last_modified(url):
     try:
         r = requests.head(url, timeout=10)
@@ -81,8 +79,6 @@ def load_questions(test_name):
     with open(local_path, "r", encoding='utf-8') as f:
         return json.load(f)
 
-# Main GUI Class
-
 class HamTestGUI:
     def __init__(self, master):
         self.master = master
@@ -95,10 +91,12 @@ class HamTestGUI:
         self.total = 0
         self.current_index = -1
         self.correct_answer = None
-        self.next_pending = False
         self.correct_answer_text = ""
+        self.next_pending = False
 
-        # Container frame for dynamic content
+        self.history = []
+        self.in_review_mode = False
+
         self.content_frame = tk.Frame(self.master)
         self.content_frame.pack(fill="both", expand=True)
 
@@ -116,10 +114,8 @@ class HamTestGUI:
         for widget in self.content_frame.winfo_children():
             widget.destroy()
 
-    # Test selection UI
     def show_test_selection(self):
         self.clear_content()
-
         label = tk.Label(self.content_frame, text="Select the test you want to take:", font=("Arial", 14))
         label.pack(padx=10, pady=10)
 
@@ -143,13 +139,14 @@ class HamTestGUI:
         self.score = 0
         self.total = 0
         self.current_index = -1
-
+        self.history = []
+        self.in_review_mode = False
         self.show_question()
 
-    # Quiz UI
     def show_question(self):
         self.clear_content()
-        self.current_index += 1
+        if not self.in_review_mode:
+            self.current_index += 1
 
         if self.current_index >= len(self.questions):
             pct = (self.score / self.total) * 100 if self.total > 0 else 0
@@ -157,13 +154,13 @@ class HamTestGUI:
             self.master.destroy()
             return
 
-        self.feedback_label = tk.Label(self.content_frame, text="", font=("Arial", 14), wraplength=780, justify="left")
-        self.feedback_label.pack(pady=5)
-
         q = self.questions[self.current_index]
         question_text = q.get("question")
         answers = q.get("answers", [])
         correct_index = q.get("correct")
+
+        self.feedback_label = tk.Label(self.content_frame, text="", font=("Arial", 14), wraplength=780, justify="left")
+        self.feedback_label.pack(pady=5)
 
         self.question_label = tk.Label(self.content_frame, text=question_text, wraplength=780, justify="left", font=("Arial", 12))
         self.question_label.pack(padx=10, pady=10)
@@ -197,13 +194,37 @@ class HamTestGUI:
         nav_frame = tk.Frame(self.content_frame)
         nav_frame.pack(pady=10)
 
+        self.back_button = tk.Button(nav_frame, text="←", command=self.go_back, font=("Arial", 14))
+        self.back_button.pack(side=tk.LEFT, padx=5)
+        if self.current_index == 0:
+            self.back_button.config(state="disabled")
+
         self.quit_button = tk.Button(nav_frame, text="Quit", command=self.quit_quiz)
         self.quit_button.pack(side=tk.LEFT, padx=5)
 
-        self.next_button = tk.Button(nav_frame, text="Next", command=self.check_answer)
+        self.next_button = tk.Button(nav_frame, text="→", command=self.check_answer, font=("Arial", 14))
         self.next_button.pack(side=tk.LEFT, padx=5)
 
         self.next_pending = False
+
+        if self.in_review_mode:
+            self.next_button.config(text="→", command=self.exit_review_mode, state="normal")
+            selected = None
+            was_correct = False
+            for h in self.history:
+                if h["index"] == self.current_index:
+                    selected = h["selected"]
+                    was_correct = h["correct"]
+                    break
+            self.selected_answer.set(selected)
+            for child in self.answers_frame.winfo_children():
+                child.config(state="disabled")
+            if was_correct:
+                self.feedback_label.config(text="Correct (Previously answered)", fg="green")
+            else:
+                self.feedback_label.config(
+                    text=f"Incorrect. The correct answer was: {self.correct_answer_text}", fg="red"
+                )
 
     def check_answer(self):
         if self.next_pending:
@@ -215,17 +236,33 @@ class HamTestGUI:
             return
 
         self.total += 1
-        if selected == self.correct_answer:
+        is_correct = selected == self.correct_answer
+        if is_correct:
             self.score += 1
             self.feedback_label.config(text="Correct!", fg="green")
-            delay = 1500  # 1.5 sec
+            delay = 1500
         else:
-            feedback_text = f"Incorrect! The correct answer was: {self.correct_answer_text}"
-            self.feedback_label.config(text=feedback_text, fg="red")
-            delay = 3500  # 3.5 sec
+            self.feedback_label.config(text=f"Incorrect! The correct answer was: {self.correct_answer_text}", fg="red")
+            delay = 3500
+
+        self.history.append({
+            "index": self.current_index,
+            "selected": selected,
+            "correct": is_correct
+        })
 
         self.next_pending = True
         self.master.after(delay, self.show_question)
+
+    def go_back(self):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.in_review_mode = True
+            self.show_question()
+
+    def exit_review_mode(self):
+        self.in_review_mode = False
+        self.show_question()
 
     def quit_quiz(self):
         pct = (self.score / self.total) * 100 if self.total > 0 else 0
@@ -236,7 +273,6 @@ def main():
     root = tk.Tk()
     app = HamTestGUI(root)
     root.mainloop()
-
 
 if __name__ == "__main__":
     main()
