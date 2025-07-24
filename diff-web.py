@@ -15,6 +15,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import smtplib
 from email.mime.text import MIMEText
+import getpass  # For secure SNMP password input
 
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
@@ -40,6 +41,9 @@ parser.add_argument("-h", "--hook", type=str,
                     help="Webhook URL to POST to on changes.")
 
 args = parser.parse_args()
+
+# Prompt for SNMP password securely
+SNMP_PASSWORD = getpass.getpass("Enter SNMP password: ")
 
 def normalize_url(url):
     parsed = urlparse(url)
