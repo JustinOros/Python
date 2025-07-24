@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: Monitor a website for changes.
-# Usage: python3 diff-web.py https://example.com --email user@example.com
+# Usage: python3 diff-web.py https://example.com --time 60 --email user@example.com
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
@@ -47,6 +47,10 @@ def get_log_filename(url, override=None):
     if override:
         return override
     domain = urlparse(url).netloc
+    if not domain:
+        domain = url.replace("://", "_").replace("/", "_")
+        if not domain:
+            domain = "monitor"
     return f"{domain}.log"
 
 def get_cache_filename(url):
@@ -78,13 +82,20 @@ def send_email(subject, body, recipients):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-def monitor_website(url, interval, log_file_override=None, quiet=False, recipients=None):
+def monitor_website(url, interval, log_file, quiet=False, recipients=None):
     url = normalize_url(url)
     domain = urlparse(url).netloc
-    log_file = get_log_filename(url, log_file_override)
     cache_file = get_cache_filename(url)
 
-    log_message(f"[{timestamp()}] Monitoring {domain}", log_file, quiet)
+    if not os.path.exists(log_file):
+        with open(log_file, 'w') as f:
+            pass
+
+    initial_message = f"[{timestamp()}] Monitoring {domain}"
+    if not quiet:
+        print(initial_message)
+    with open(log_file, 'a') as f:
+        f.write(initial_message + '\n')
 
     while True:
         try:
@@ -116,7 +127,8 @@ def monitor_website(url, interval, log_file_override=None, quiet=False, recipien
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Monitor a website for changes.")
-    parser.add_argument("url", help="The website URL or domain to monitor.")
+    parser.add_argument("url", nargs='?', help="The website URL or domain to monitor.")
+    parser.add_argument("-d", "--domain", help="Domain to monitor.")
     parser.add_argument("-t", "--time", type=int, default=60,
                         help="Time interval between checks in seconds (default: 60).")
     parser.add_argument("-l", "--log", type=str,
@@ -127,9 +139,23 @@ if __name__ == "__main__":
                         help="Email address(es) to notify on changes.")
 
     args = parser.parse_args()
-    log_file = get_log_filename(args.url, args.log)
+
+    target = args.domain if args.domain else args.url
+
+    if not target:
+        parser.error("You must specify a URL/domain to monitor either as positional argument or with -d/--domain.")
+
+    # Normalize target for filename extraction
+    if not urlparse(target).scheme:
+        target = "https://" + target
+
+    log_file = get_log_filename(target, args.log)
+
+    if not os.path.exists(log_file):
+        print(f"Log file created at {os.path.abspath(log_file)}")
+
     try:
-        monitor_website(args.url, args.time, args.log, args.quiet, args.email)
+        monitor_website(target, args.time, log_file, args.quiet, args.email)
     except KeyboardInterrupt:
         message = f"[{timestamp()}] Monitoring halted by user (^C)."
         if not args.quiet:
