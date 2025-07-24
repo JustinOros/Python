@@ -66,3 +66,8 @@ python3 maguro-game.py
 Movement: A (Move Left - Keyboard),D (Move Right - Keyboard) or Joy-pad (Controller)
 Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
 ```
+### diff-web.py
+`Monitor a website and send diffs to stdout, log-file, email-address or webhook.`
+```
+python3 diff-web.py --domain example.com --email user@example.com --hook example.com/hook
+```
