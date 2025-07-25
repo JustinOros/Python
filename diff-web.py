@@ -19,32 +19,19 @@ from requests.exceptions import ConnectionError, HTTPError, Timeout, RequestExce
 from bs4 import BeautifulSoup
 
 def clean_text(text):
-    junk_phrases = [
-        r'\bMenu\b', r'\bClose\b', r'\bSign ?In\b', r'\bSign ?Out\b',
-        r'\bLogin\b', r'\bLogout\b', r'\bBack\b', r'\bNext\b', r'\bMore\b',
-        r'\bSearch\b', r'\bCart\b', r'\bSettings\b', r'\bHelp\b',
-        r'\bContact\b', r'\bLanguage\b', r'\bProfile\b', r'\bAccount\b',
-        r'\bSupport\b', r'\bUS\b', r'\bEN\b', r'\bFR\b', r'\bDE\b',
-        r'\bJP\b', r'\bES\b', r'\bIT\b', r'\bCN\b', r'\b≡\b', r'\b×\b'
-    ]
-
-    text = re.sub(r'\b(?:US|EN|FR|DE|JP|ES|IT|CN)\b(\s*chevron_right\s*)+', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'(chevron_right\s*){2,}', '', text, flags=re.IGNORECASE)
-    text = re.sub(r'\bchevron_right\b', '', text, flags=re.IGNORECASE)
-
-    for pattern in junk_phrases:
-        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
-
+    junk_phrases_pattern = re.compile(
+        r'\b(?:Menu|Close|Sign ?In|Sign ?Out|Login|Logout|Back|Next|More|Search|Cart|Settings|Help|Contact|Language|'
+        r'Profile|Account|Support|US|EN|FR|DE|JP|ES|IT|CN|≡|×)\b',
+        flags=re.IGNORECASE
+    )
+    text = junk_phrases_pattern.sub('', text)
+    text = re.sub(r'(?:\bchevron_right\b\s*){1,}', '', text, flags=re.IGNORECASE)
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 def fetch_content_with_fallback(domain):
-    """
-    Try HTTPS first, if fails, fall back to HTTP.
-    Return tuple (url_used, content)
-    """
     parsed = urlparse(domain)
-    netloc = parsed.netloc if parsed.netloc else parsed.path  # handles domain or full url input
+    netloc = parsed.netloc if parsed.netloc else parsed.path
 
     https_url = f"https://{netloc}"
     http_url = f"http://{netloc}"
@@ -55,7 +42,6 @@ def fetch_content_with_fallback(domain):
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # Remove unwanted tags
             for tag in soup(["script", "style", "noscript", "iframe", "svg", "canvas", "header", "footer", "nav", "form", "button"]):
                 tag.decompose()
 
@@ -70,7 +56,6 @@ def fetch_content_with_fallback(domain):
 
         except (ConnectionError, HTTPError, Timeout, RequestException) as e:
             print(f"[!] Failed to fetch {url}: {e}")
-            # Try next url in fallback loop
             continue
 
     raise Exception(f"Could not fetch content from HTTPS or HTTP for domain: {domain}")
@@ -89,14 +74,10 @@ def save_log(domain, content):
 
 def prompt_credentials(args):
     try:
-        # Prompt email if -e passed without value or empty string
         if args.email is not None and not args.email.strip():
             args.email = input("Enter your email: ").strip()
-
-        # Prompt password only if email is set and password not provided
         if args.email and not args.password:
             args.password = getpass("Enter your password: ")
-
     except KeyboardInterrupt:
         print("\n[!] Input canceled by user. Exiting.")
         sys.exit(0)
@@ -118,7 +99,7 @@ def main():
         print(f"[+] Email: {args.email}")
 
     previous_hash = None
-    current_url = None  # to remember actual URL used (https/http)
+    current_url = None
 
     while True:
         try:
