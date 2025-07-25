@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: Monitor a website for changes.
-# Usage: python3 diff-web.py --domain example.com --time 300 --email user@example.com
+# Usage: python3 diff-web.py --domain example.com --time 60 --email user@example.com
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
@@ -67,11 +67,14 @@ def save_log(domain, content):
 
 def prompt_credentials(args):
     try:
-        if args.email is not None:
-            if not args.email:
-                args.email = input("Enter your email: ").strip()
-            if not args.password:
-                args.password = getpass("Enter your password: ")
+        # Prompt email if -e passed without value or empty string
+        if args.email is not None and not args.email.strip():
+            args.email = input("Enter your email: ").strip()
+
+        # Prompt password only if email is set and password not provided
+        if args.email and not args.password:
+            args.password = getpass("Enter your password: ")
+
     except KeyboardInterrupt:
         print("\n[!] Input canceled by user. Exiting.")
         sys.exit(0)
@@ -80,9 +83,9 @@ def prompt_credentials(args):
 def main():
     parser = argparse.ArgumentParser(description="Monitor a webpage for changes.")
     parser.add_argument("-d", "--domain", type=str, required=True, help="Domain to monitor (e.g., example.com)")
-    parser.add_argument("--time", type=int, default=300, help="Polling interval in seconds (default: 300)")
+    parser.add_argument("--time", type=int, default=60, help="Polling interval in seconds (default: 60)")
     parser.add_argument("-e", "--email", nargs="?", const="", help="Your email address (optional prompt)")
-    parser.add_argument("-p", "--password", type=str, help="Your password (discouraged: will show in history)")
+    parser.add_argument("-p", "--password", nargs="?", const="", help="Your password (optional; will prompt if not provided)")
 
     args = parser.parse_args()
     args = prompt_credentials(args)
