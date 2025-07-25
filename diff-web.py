@@ -79,8 +79,7 @@ def prompt_credentials(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Monitor a webpage for changes.")
-    parser.add_argument("positional_domain", nargs="?", help="Domain to monitor (e.g., example.com)")
-    parser.add_argument("-d", "--domain", type=str, help="Domain to monitor (e.g., example.com)")
+    parser.add_argument("-d", "--domain", type=str, required=True, help="Domain to monitor (e.g., example.com)")
     parser.add_argument("--time", type=int, default=300, help="Polling interval in seconds (default: 300)")
     parser.add_argument("-e", "--email", nargs="?", const="", help="Your email address (optional prompt)")
     parser.add_argument("-p", "--password", type=str, help="Your password (discouraged: will show in history)")
@@ -88,11 +87,7 @@ def main():
     args = parser.parse_args()
     args = prompt_credentials(args)
 
-    domain = args.domain or args.positional_domain
-    if not domain:
-        print("Error: No domain provided. Use -d/--domain or provide it as a positional argument.")
-        sys.exit(1)
-
+    domain = args.domain
     url = domain if domain.startswith("http") else "https://" + domain
     print(f"[+] Monitoring: {url} every {args.time} seconds")
     if args.email:
