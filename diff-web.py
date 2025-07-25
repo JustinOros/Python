@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: Monitor a website for changes.
-# Usage: python3 diff-web.py --domain example.com --time 60 --email user@example.com
+# Usage: python3 diff-web.py --domain example.com
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
@@ -15,6 +15,7 @@ from getpass import getpass
 from urllib.parse import urlparse
 
 import requests
+from requests.exceptions import ConnectionError, HTTPError, Timeout, RequestException
 from bs4 import BeautifulSoup
 
 def clean_text(text):
@@ -37,21 +38,42 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def fetch_content(url):
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, 'html.parser')
+def fetch_content_with_fallback(domain):
+    """
+    Try HTTPS first, if fails, fall back to HTTP.
+    Return tuple (url_used, content)
+    """
+    parsed = urlparse(domain)
+    netloc = parsed.netloc if parsed.netloc else parsed.path  # handles domain or full url input
 
-    for tag in soup(["script", "style", "noscript", "iframe", "svg", "canvas", "header", "footer", "nav", "form", "button"]):
-        tag.decompose()
+    https_url = f"https://{netloc}"
+    http_url = f"http://{netloc}"
 
-    keep_tags = ['h1', 'h2', 'h3', 'h4', 'p', 'li', 'article', 'section', 'span', 'div']
-    for tag in soup.find_all(True):
-        if tag.name not in keep_tags:
-            tag.decompose()
+    for url in [https_url, http_url]:
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
 
-    raw_text = soup.get_text(separator=' ', strip=True)
-    return clean_text(raw_text)
+            # Remove unwanted tags
+            for tag in soup(["script", "style", "noscript", "iframe", "svg", "canvas", "header", "footer", "nav", "form", "button"]):
+                tag.decompose()
+
+            keep_tags = ['h1', 'h2', 'h3', 'h4', 'p', 'li', 'article', 'section', 'span', 'div']
+            for tag in soup.find_all(True):
+                if tag.name not in keep_tags:
+                    tag.decompose()
+
+            raw_text = soup.get_text(separator=' ', strip=True)
+            cleaned = clean_text(raw_text)
+            return url, cleaned
+
+        except (ConnectionError, HTTPError, Timeout, RequestException) as e:
+            print(f"[!] Failed to fetch {url}: {e}")
+            # Try next url in fallback loop
+            continue
+
+    raise Exception(f"Could not fetch content from HTTPS or HTTP for domain: {domain}")
 
 def hash_content(content):
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
@@ -91,24 +113,26 @@ def main():
     args = prompt_credentials(args)
 
     domain = args.domain
-    url = domain if domain.startswith("http") else "https://" + domain
-    print(f"[+] Monitoring: {url} every {args.time} seconds")
+    print(f"[+] Monitoring: {domain} every {args.time} seconds")
     if args.email:
         print(f"[+] Email: {args.email}")
 
     previous_hash = None
+    current_url = None  # to remember actual URL used (https/http)
 
     while True:
         try:
-            content = fetch_content(url)
+            url_used, content = fetch_content_with_fallback(domain)
+            current_url = url_used
             current_hash = hash_content(content)
 
             if previous_hash and current_hash != previous_hash:
-                save_log(url, content)
+                save_log(current_url, content)
             else:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] No change.")
 
             previous_hash = current_hash
+
         except Exception as e:
             print(f"[!] Error: {e}")
 
