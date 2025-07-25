@@ -4,10 +4,6 @@
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
-#!/usr/bin/env python3
-# Description: A script to monitor a webpage for text changes and log meaningful updates.
-# Usage: python3 diff-web.py --domain example.com --time 300 --email user@example.com
-
 import argparse
 import hashlib
 import os
