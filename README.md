@@ -71,3 +71,8 @@ Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Control
 ```
 python3 diff-web.py --domain example.com --email user@example.com --hook example.com/hook
 ```
+### ham-test-www.py
+`Amateur Radio Operator License test preparation in a web browser.`
+```
+python3 ham-test-www.py
+```
