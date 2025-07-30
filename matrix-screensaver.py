@@ -24,7 +24,7 @@ COLOR_MAP = {
     'white': curses.COLOR_WHITE,
 }
 
-def matrix_rain(stdscr, color_mode, timeout=None):
+def matrix_rain(stdscr, color_mode):
     curses.curs_set(0)
     print("\033[?25l", end="", flush=True)
     curses.start_color()
@@ -57,7 +57,6 @@ def matrix_rain(stdscr, color_mode, timeout=None):
     signature_visible_until = 0
     last_signature_time = time.time()
 
-    start_time = time.time()
     columns = []
     column_speeds = []
     column_colors = []
@@ -65,8 +64,6 @@ def matrix_rain(stdscr, color_mode, timeout=None):
     try:
         while True:
             now = time.time()
-            if timeout and (now - start_time) > timeout:
-                break
 
             key = stdscr.getch()
             if key == curses.KEY_RIGHT:
@@ -175,8 +172,6 @@ def main():
     )
     parser.add_argument('-c', '--color', type=str, default='green',
                         help="Set the falling text color (use -l to list options)")
-    parser.add_argument('-t', '--timeout', type=int, default=None,
-                        help="Exit after N seconds (optional)")
     parser.add_argument('-l', '--list-colors', action='store_true',
                         help="List available color options and exit")
     args = parser.parse_args()
@@ -192,7 +187,7 @@ def main():
         print(f"Error: Invalid color '{chosen_color}'. Use -l to list available options.")
         sys.exit(1)
 
-    curses.wrapper(lambda stdscr: matrix_rain(stdscr, chosen_color, args.timeout))
+    curses.wrapper(lambda stdscr: matrix_rain(stdscr, chosen_color))
 
 if __name__ == "__main__":
     main()
