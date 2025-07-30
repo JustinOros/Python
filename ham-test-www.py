@@ -80,6 +80,7 @@ def generate_html(questions):
     .question-box {{ background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-bottom: 2rem; }}
     .answers label {{ display: block; margin: 0.5rem 0; }}
     .nav-buttons {{ margin-top: 1rem; }}
+    .nav-buttons button {{ margin-right: 0.5rem; }}
     .correct {{ color: green; }}
     .incorrect {{ color: red; }}
     #result {{ font-weight: bold; }}
@@ -113,6 +114,7 @@ def generate_html(questions):
         document.getElementById("quiz").innerHTML = `<h2>Finished!</h2><p id="result">Score: ${{score}} / ${{shuffled.length}} (${{((score / shuffled.length) * 100).toFixed(2)}}%)</p>`;
         return;
       }}
+
       const q = shuffled[current];
       const options = q.answers.map((a, i) => {{
         return `<label><input type="radio" name="ans" value="${{i}}"> ${{a}}</label>`;
@@ -124,6 +126,7 @@ def generate_html(questions):
           <p>${{q.question}}</p>
           <div class="answers">${{options}}</div>
           <div class="nav-buttons">
+            <button onclick="quitTest()">Quit</button>
             <button onclick="submitAnswer(${{q.correct}})">Submit</button>
           </div>
         </div>`;
@@ -155,6 +158,15 @@ def generate_html(questions):
         current++;
         showQuestion();
       }}, isCorrect ? 1000 : 2500);
+    }}
+
+    function quitTest() {{
+      const answered = current;
+      const percent = answered > 0 ? ((score / answered) * 100).toFixed(0) : 0;
+      document.getElementById("quiz").innerHTML = `
+        <h1>Test Score</h1>
+        <p>You answered ${{score}} questions correctly out of ${{answered}} questions answered. (${{percent}}%)</p>
+      `;
     }}
   </script>
 </body>
