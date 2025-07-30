@@ -26,6 +26,7 @@ COLOR_MAP = {
 
 def matrix_rain(stdscr, color_mode, timeout=None):
     curses.curs_set(0)
+    print("\033[?25l", end="", flush=True)
     curses.start_color()
     curses.use_default_colors()
     stdscr.nodelay(True)
@@ -164,6 +165,8 @@ def matrix_rain(stdscr, color_mode, timeout=None):
 
     except KeyboardInterrupt:
         pass
+    finally:
+        print("\033[?25h", end="", flush=True)
 
 def main():
     parser = argparse.ArgumentParser(
