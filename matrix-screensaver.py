@@ -171,9 +171,9 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument('-c', '--color', type=str, default='green',
-                        help="Set the falling text color (use -l to list options)")
+                        help="set screensaver color")
     parser.add_argument('-l', '--list-colors', action='store_true',
-                        help="List available color options and exit")
+                        help="list available color options")
     args = parser.parse_args()
 
     if args.list_colors:
