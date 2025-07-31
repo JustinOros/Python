@@ -48,14 +48,14 @@ def get_top_processes(limit):
     return processes[:limit]
 
 def colorize(cpu, name, user, use_color):
-    limit = 25
+    limit = 35
     if len(name) > limit:
         display_name = name[:limit - 3] + "..."
     else:
         display_name = name
 
     if cpu <= 25 or not use_color:
-        return f"{cpu:6.2f}%  {display_name:<25}  {user[:15]:<15}"
+        return f"{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}"
     else:
         YELLOW = "\033[33m"
         ORANGE = "\033[38;5;214m"
@@ -63,7 +63,7 @@ def colorize(cpu, name, user, use_color):
         RESET_TO_GREEN = "\033[32m"
         color = YELLOW if cpu <= 50 else ORANGE if cpu <= 75 else RED
         cpu_str = f"{cpu:6.2f}%"
-        return f"{color}{cpu_str}  {display_name:<25}  {user[:15]:<15}{RESET_TO_GREEN}"
+        return f"{color}{cpu_str}  {display_name:<35}  {user[:15]:<15}{RESET_TO_GREEN}"
 
 def print_processes(limit, show_quit_hint=True, use_color=True):
     clear_screen()
@@ -74,8 +74,8 @@ def print_processes(limit, show_quit_hint=True, use_color=True):
     if use_color:
         print(GREEN, end='')
 
-    print(" CPU     Process                    User")
-    print("----------------------------------------------")
+    print(" CPU     Process                               User")
+    print("----------------------------------------------------------")
     
     for (cpu, name, user) in top_processes:
         print(colorize(cpu, name, user, use_color))
