@@ -74,7 +74,7 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
     if use_color:
         print(GREEN, end='')
 
-    line_prefix = "Ln   " if show_line_numbers else ""
+    line_prefix = "Ln  " if show_line_numbers else ""
     cpu_col = " CPU"
     name_col = " Process"
     user_col = " User"
@@ -133,7 +133,6 @@ def main():
             print_processes(limit, show_quit_hint=show_quit, use_color=use_color, show_line_numbers=show_lines)
             key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
-                print("Exiting...")
                 break
     except KeyboardInterrupt:
         print("\nProgram interrupted. Exiting...")
