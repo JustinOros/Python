@@ -1,83 +1,122 @@
-### powerball.py 
-`A command-line interface to powerball.com`
-```
+# Python Scripts
+
+This repository contains a variety of Python scripts ranging from command-line utilities to graphical games and test preparation tools. Below is a brief overview and usage instructions for each script.
+
+---
+
+## Utilities
+
+### `powerball.py`  
+**Description:** Command-line interface for powerball.com lottery information.  
+```bash
 python3 powerball.py [-List|-L]
 ```
-    
-### dnet-user-stats.py
-`A command-line interface to stats.distributed.net`
-```
+
+### `dnet-user-stats.py`  
+**Description:** Command-line interface to stats.distributed.net user/project stats.  
+```bash
 python3 dnet-stats.py -p <project> -u <user>
 ```
-### ua-pay.py
-`A command-line interface to University of Arizona payrolls.`
-```
+
+### `ua-pay.py`  
+**Description:** Command-line interface for University of Arizona payroll information.  
+```bash
 python3 ua-pay.py -fn <first_name> -ln <last_name>
 ```
-### iso2usb-mac.py
-`Easily write ISO images to USB sticks on macOS.`
-```
+
+### `iso2usb-mac.py`  
+**Description:** Easily write ISO images to USB sticks on macOS.  
+```bash
 python3 iso2usb-mac.py
 ```
-### text2watermark.py
-`Convert text to watermark (PNG).`
-```
+
+### `text2watermark.py`  
+**Description:** Convert text to a PNG watermark image.  
+```bash
 python3 text2watermark.py <text>
 ```
-### ham-test-cli.py
-`A command-line Amateur Radio Operator License test preparation tool.`
-```
-python3 ham-test-cli.py
-```
-### ham-test-gui.py
-`A Python-GUI Amateur Radio Operator License test preparation tool.`
-```
-python3 ham-test-gui.py
-```
-### chatgpt.py
-`A command-line interface to chat.openai.com`
-```
+
+### `chatgpt.py`  
+**Description:** Command-line interface to chat.openai.com.  
+```bash
 python3 chatgpt.py
 ```
-### matrix-screensaver.py
-`The Matrix Screensaver.`
-```
-python3 matrix-screensaver.py
-```
-### sushi-screensaver.py
-`Sushi Screensaver.`
-```
-python3 sushi-screensaver.py
-```
-### circlewars-game.py
-`Red vs Blue circles.`
-```
-python3 circlewars-game.py
 
-Movement: W,A,S,D (Keyboard) or Direction-pad (Controller)
-Fire: Spacebar (Keyboard) or Primary-Click (Mouse) or A-button (Controller)
-Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
-```
-### maguro-game.py
-`Maguro Cat eats sushi.`
-```
-python3 maguro-game.py
-
-Movement: A (Move Left - Keyboard),D (Move Right - Keyboard) or Joy-pad (Controller)
-Pause/Exit: Esc (Keyboard) or Start (Controller) then Q (Keyboard) or X (Controller)
-```
-### diff-web.py
-`Monitor a website and send diffs to stdout, log-file, email-address or webhook.`
-```
+### `diff-web.py`  
+**Description:** Monitor a website and send diffs to stdout, a log file, email, or webhook.  
+```bash
 python3 diff-web.py --domain example.com --email user@example.com --hook example.com/hook
 ```
-### ham-test-www.py
-`Amateur Radio Operator License test preparation in a web browser.`
-```
-python3 ham-test-www.py
-```
-### color-top.py
-`Displays top system processes with color.`
-```
+
+### `color-top.py`  
+**Description:** Display top system processes with color.  
+```bash
 python3 color-top.py
 ```
+
+---
+
+## Amateur Radio Test Preparation
+
+### `ham-test-cli.py`  
+**Description:** Amateur Radio Operator License test preparation tool (Command Line Interface).  
+```bash
+python3 ham-test-cli.py
+```
+
+### `ham-test-gui.py`  
+**Description:** Amateur Radio Operator License test preparation tool (Graphical User Interface).
+```bash
+python3 ham-test-gui.py
+```
+
+### `ham-test-www.py`  
+**Description:** Amateur Radio Operator License test preparation tool (Web Browser).
+```bash
+python3 ham-test-www.py
+```
+
+---
+
+## Screensavers
+
+### `matrix-screensaver.py`  
+**Description:** The Matrix-themed screensaver.  
+```bash
+python3 matrix-screensaver.py
+```
+
+### `sushi-screensaver.py`  
+**Description:** Sushi-themed screensaver.  
+```bash
+python3 sushi-screensaver.py
+```
+
+---
+
+## Games
+
+### `circlewars-game.py`  
+**Description:** Red vs Blue circles game.  
+```bash
+python3 circlewars-game.py
+```
+
+**Controls:**  
+- Movement: `W`, `A`, `S`, `D` (Keyboard) or Direction-pad (Controller)  
+- Fire: `Spacebar` (Keyboard), Primary-click (Mouse), or `A` button (Controller)  
+- Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
+
+### `maguro-game.py`  
+**Description:** Maguro Cat eats sushi game.  
+```bash
+python3 maguro-game.py
+```
+
+**Controls:**  
+- Movement: `A` (Left), `D` (Right) (Keyboard) or Joy-pad (Controller)  
+- Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
+
+---
+
+_Designed and tested on Mac and Linux. May or may not work on Windows. \*shrug\*_
