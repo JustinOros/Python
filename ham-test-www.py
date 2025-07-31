@@ -13,7 +13,6 @@ from datetime import datetime
 # Logging
 logging.basicConfig(level=logging.WARNING, format='[%(levelname)s] %(message)s')
 
-# Test URLs and local filenames
 URLS = {
     "Technician": "https://raw.githubusercontent.com/russolsen/ham_radio_question_pool/master/technician-2022-2026/technician.json",
     "General": "https://raw.githubusercontent.com/russolsen/ham_radio_question_pool/master/general-2023-2027/general.json",
@@ -82,12 +81,10 @@ def generate_html(questions):
       margin: 20px;
       transition: background-color 0.3s, color 0.3s;
     }}
-
     .dark-mode {{
       background-color: #121212;
       color: #ffffff;
     }}
-
     .question-box {{
       background: #fff;
       padding: 1rem;
@@ -95,41 +92,33 @@ def generate_html(questions):
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
       margin-bottom: 2rem;
     }}
-
     .dark-mode .question-box {{
       background: #1e1e1e;
       box-shadow: 0 0 10px rgba(255,255,255,0.05);
     }}
-
     .answers label {{
       display: block;
       margin: 0.5rem 0;
     }}
-
     .nav-buttons {{
       margin-top: 1rem;
     }}
-
     .nav-buttons button {{
       margin-right: 0.5rem;
     }}
-
     .correct {{ color: limegreen; }}
     .incorrect {{ color: tomato; }}
     #result {{ font-weight: bold; }}
-
     .settings {{
       position: fixed;
       top: 10px;
       right: 10px;
       z-index: 100;
     }}
-
     .gear-icon {{
       font-size: 24px;
       cursor: pointer;
     }}
-
     .settings-menu {{
       display: none;
       position: absolute;
@@ -143,17 +132,14 @@ def generate_html(questions):
       width: 100px;
       white-space: nowrap;
     }}
-
     .settings-menu.dark {{
       background: #2a2a2a;
       color: white;
       border-color: #555;
     }}
-
     .settings:hover .settings-menu {{
       display: block;
     }}
-
     .settings-menu input {{
       margin-right: 6px;
     }}
@@ -208,7 +194,7 @@ def generate_html(questions):
           <div class="answers">${{options}}</div>
           <div class="nav-buttons">
             <button onclick="quitTest()">Quit</button>
-            <button onclick="submitAnswer(${{q.correct}})">Submit</button>
+            <button id="submitBtn" onclick="submitAnswer(${{q.correct}})">Submit</button>
           </div>
         </div>`;
     }}
@@ -219,13 +205,17 @@ def generate_html(questions):
       for (let i = 0; i < radios.length; i++) {{
         if (radios[i].checked) {{
           selected = parseInt(radios[i].value);
-          break;
         }}
+        radios[i].disabled = true;
       }}
+
       if (selected === -1) {{
         alert("Please select an answer.");
         return;
       }}
+
+      const submitBtn = document.getElementById("submitBtn");
+      if (submitBtn) submitBtn.disabled = true;
 
       const isCorrect = selected === correct;
       if (isCorrect) score++;
@@ -235,6 +225,7 @@ def generate_html(questions):
         : `<p class="incorrect">Incorrect. Correct answer was: ${{shuffled[current].answers[correct]}}</p>`;
 
       document.querySelector(".question-box").innerHTML += feedback;
+
       setTimeout(() => {{
         current++;
         showQuestion();
@@ -250,7 +241,6 @@ def generate_html(questions):
       `;
     }}
 
-    // Theme toggle logic
     const body = document.body;
     const settingsMenu = document.getElementById('settingsMenu');
     const radios = settingsMenu.querySelectorAll('input[name="theme"]');
