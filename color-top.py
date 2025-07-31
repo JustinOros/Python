@@ -51,7 +51,7 @@ def colorize(cpu, name, user):
         cpu_str = f"{cpu:6.2f}%"
         return f"{color}{cpu_str}  {name[:25]:<25}  {user[:15]:<15}{RESET_TO_GREEN}"
 
-def print_processes(limit):
+def print_processes(limit, show_quit_hint=True):
     clear_screen()
     top_processes = get_top_processes(limit)
 
@@ -63,7 +63,8 @@ def print_processes(limit):
     for (cpu, name, user) in top_processes:
         print(colorize(cpu, name, user))
 
-    print("\nPress 'q' to quit.")
+    if show_quit_hint:
+        print("\nPress 'q' to quit.")
 
 def wait_for_keypress(timeout=1.0):
     fd = sys.stdin.fileno()
@@ -84,9 +85,15 @@ def main():
     limit = args.number
     interval = max(1, args.interval)
 
+    refresh_count = 0
+    start_time = time.time()
+
     try:
         while True:
-            print_processes(limit)
+            refresh_count += 1
+            elapsed = time.time() - start_time
+            show_quit = refresh_count <= 3 or elapsed <= 3
+            print_processes(limit, show_quit_hint=show_quit)
             key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
                 print("Exiting...")
