@@ -9,7 +9,6 @@ import time
 import psutil
 import sys
 import select
-import socket
 import argparse
 import tty
 import termios
@@ -48,9 +47,9 @@ def get_top_processes(limit):
     return processes[:limit]
 
 def colorize(cpu, name, user, use_color):
-    limit = 35
-    if len(name) > limit:
-        display_name = name[:limit - 3] + "..."
+    name_limit = 35
+    if len(name) > name_limit:
+        display_name = name[:name_limit - 3] + "..."
     else:
         display_name = name
 
@@ -65,20 +64,25 @@ def colorize(cpu, name, user, use_color):
         cpu_str = f"{cpu:6.2f}%"
         return f"{color}{cpu_str}  {display_name:<35}  {user[:15]:<15}{RESET_TO_GREEN}"
 
-def print_processes(limit, show_quit_hint=True, use_color=True):
+def print_processes(limit, show_quit_hint=True, use_color=True, show_line_numbers=False):
     clear_screen()
     top_processes = get_top_processes(limit)
-
     GREEN = "\033[32m" if use_color else ""
-
     if use_color:
         print(GREEN, end='')
 
-    print(" CPU     Process                               User")
-    print("----------------------------------------------------------")
-    
-    for (cpu, name, user) in top_processes:
-        print(colorize(cpu, name, user, use_color))
+    line_number_width = len(str(limit))
+    line_prefix = f"{'Ln':<{line_number_width}}  " if show_line_numbers else ""
+    cpu_col = " CPU"
+    name_col = " Process"
+    user_col = " User"
+    header = f"{line_prefix}{cpu_col:<6}  {name_col:<35}  {user_col:<15}"
+    print(header)
+    print("-" * len(header))
+
+    for i, (cpu, name, user) in enumerate(top_processes, start=1):
+        prefix = f"{i:0{line_number_width}}: " if show_line_numbers else ""
+        print(f"{prefix}{colorize(cpu, name, user, use_color)}")
 
     if show_quit_hint:
         print("\nPress 'q' to quit.")
@@ -99,11 +103,13 @@ def main():
     parser.add_argument("-n", "--number", type=int, default=10, help="Number of processes to monitor (default is 10).")
     parser.add_argument("-i", "--interval", type=int, default=1, help="Refresh interval in seconds (default is 1).")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
+    parser.add_argument("-l", "--line", action="store_true", help="Show line numbers.")
     args = parser.parse_args()
     limit = args.number
     interval = max(1, args.interval)
 
     use_color = not args.no_color and supports_color()
+    show_lines = args.line
 
     refresh_count = 0
     start_time = time.time()
@@ -113,7 +119,7 @@ def main():
             refresh_count += 1
             elapsed = time.time() - start_time
             show_quit = refresh_count < 3 and elapsed < 3
-            print_processes(limit, show_quit_hint=show_quit, use_color=use_color)
+            print_processes(limit, show_quit_hint=show_quit, use_color=use_color, show_line_numbers=show_lines)
             key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
                 print("Exiting...")
