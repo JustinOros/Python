@@ -53,7 +53,7 @@ def print_processes(limit):
     clear_screen()
     top_processes = get_top_processes(limit)
 
-    print("CPU %   Process Name               User")
+    print(" CPU%    Process                    User")
     print("----------------------------------------------")
     
     for (cpu, name, user) in top_processes:
@@ -75,13 +75,15 @@ def wait_for_keypress(timeout=1.0):
 def main():
     parser = argparse.ArgumentParser(description="Monitor system processes by CPU usage.")
     parser.add_argument("-n", "--number", type=int, default=10, help="Number of processes to monitor (default is 10).")
+    parser.add_argument("-i", "--interval", type=int, default=1, help="Refresh interval in seconds (default is 1).")
     args = parser.parse_args()
     limit = args.number
+    interval = max(1, args.interval)
 
     try:
         while True:
             print_processes(limit)
-            key = wait_for_keypress(timeout=1.0)
+            key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
                 print("Exiting...")
                 break
