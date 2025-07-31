@@ -96,7 +96,6 @@ def main():
             print_processes(limit, show_quit_hint=show_quit)
             key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
-                print("Exiting...")
                 break
     except KeyboardInterrupt:
         print("\nProgram interrupted. Exiting...")
