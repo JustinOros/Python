@@ -18,13 +18,12 @@ GREEN = "\033[32m"
 YELLOW = "\033[33m"
 ORANGE = "\033[38;5;214m"
 RED = "\033[31m"
-RESET = "\033[0m"
+RESET_TO_GREEN = "\033[32m"
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def get_top_processes(limit):
-    # Prime cpu_percent readings
     for proc in psutil.process_iter(['pid']):
         try:
             proc.cpu_percent(interval=None)
@@ -45,15 +44,20 @@ def get_top_processes(limit):
     return processes[:limit]
 
 def colorize(cpu, name, user):
-    color = GREEN if cpu <= 25 else YELLOW if cpu <= 50 else ORANGE if cpu <= 75 else RED
-    cpu_str = f"{cpu:6.2f}%"
-    return f"{color}{cpu_str}  {name[:25]:<25}  {user[:15]:<15}{RESET}"
+    if cpu <= 25:
+        return f"{cpu:6.2f}%  {name[:25]:<25}  {user[:15]:<15}"
+    else:
+        color = YELLOW if cpu <= 50 else ORANGE if cpu <= 75 else RED
+        cpu_str = f"{cpu:6.2f}%"
+        return f"{color}{cpu_str}  {name[:25]:<25}  {user[:15]:<15}{RESET_TO_GREEN}"
 
 def print_processes(limit):
     clear_screen()
     top_processes = get_top_processes(limit)
 
-    print(" CPU%    Process                    User")
+    print(GREEN, end='')
+
+    print(" CPU     Process                    User")
     print("----------------------------------------------")
     
     for (cpu, name, user) in top_processes:
