@@ -92,7 +92,7 @@ def main():
         while True:
             refresh_count += 1
             elapsed = time.time() - start_time
-            show_quit = refresh_count <= 3 or elapsed <= 3
+            show_quit = refresh_count < 3 and elapsed < 3
             print_processes(limit, show_quit_hint=show_quit)
             key = wait_for_keypress(timeout=interval)
             if key and key.lower() == 'q':
