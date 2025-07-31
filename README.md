@@ -76,3 +76,8 @@ python3 diff-web.py --domain example.com --email user@example.com --hook example
 ```
 python3 ham-test-www.py
 ```
+### color-top.py
+`Displays top system processes with color.`
+```
+python3 color-top.py
+```
