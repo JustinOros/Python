@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # Description: Displays top system processes with color.
 # Usage: python3 color-top.py
@@ -67,12 +68,13 @@ def colorize(cpu, name, user, use_color):
 def print_processes(limit, show_quit_hint=True, use_color=True, show_line_numbers=False):
     clear_screen()
     top_processes = get_top_processes(limit)
+
     GREEN = "\033[32m" if use_color else ""
+
     if use_color:
         print(GREEN, end='')
 
-    line_number_width = len(str(limit))
-    line_prefix = f"{'Ln':<{line_number_width}}  " if show_line_numbers else ""
+    line_prefix = "Ln   " if show_line_numbers else ""
     cpu_col = " CPU"
     name_col = " Process"
     user_col = " User"
@@ -80,8 +82,9 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
     print(header)
     print("-" * len(header))
 
+    width = len(str(limit))
     for i, (cpu, name, user) in enumerate(top_processes, start=1):
-        prefix = f"{i:0{line_number_width}}: " if show_line_numbers else ""
+        prefix = f"{i:0{width}d}: " if show_line_numbers else ""
         print(f"{prefix}{colorize(cpu, name, user, use_color)}")
 
     if show_quit_hint:
@@ -98,12 +101,20 @@ def wait_for_keypress(timeout=1.0):
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
     return None
 
+class SortedHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    def add_arguments(self, actions):
+        actions = sorted(actions, key=lambda a: a.option_strings)
+        super().add_arguments(actions)
+
 def main():
-    parser = argparse.ArgumentParser(description="Monitor system processes by CPU usage.")
-    parser.add_argument("-n", "--number", type=int, default=10, help="Number of processes to monitor (default is 10).")
-    parser.add_argument("-i", "--interval", type=int, default=1, help="Refresh interval in seconds (default is 1).")
-    parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
+    parser = argparse.ArgumentParser(
+        description="Monitor system processes by CPU usage.",
+        formatter_class=SortedHelpFormatter
+    )
+    parser.add_argument("-i", "--interval", type=int, default=1, help="Refresh interval in seconds.")
     parser.add_argument("-l", "--line", action="store_true", help="Show line numbers.")
+    parser.add_argument("-n", "--number", type=int, default=10, help="Number of processes to monitor.")
+    parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     args = parser.parse_args()
     limit = args.number
     interval = max(1, args.interval)
