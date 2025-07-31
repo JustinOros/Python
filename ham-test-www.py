@@ -10,7 +10,6 @@ import logging
 import webbrowser
 from datetime import datetime
 
-# Logging
 logging.basicConfig(level=logging.WARNING, format='[%(levelname)s] %(message)s')
 
 URLS = {
@@ -166,12 +165,14 @@ def generate_html(questions):
   <script>
     const data = {data_json};
     let current = 0, score = 0, selectedTest = '', shuffled = [];
+    let quitRequested = false;
 
     function startTest() {{
       selectedTest = document.getElementById("testSelect").value;
       shuffled = [...data[selectedTest]].sort(() => 0.5 - Math.random());
       current = 0;
       score = 0;
+      quitRequested = false;
       document.getElementById("quiz").style.display = "block";
       showQuestion();
     }}
@@ -227,12 +228,15 @@ def generate_html(questions):
       document.querySelector(".question-box").innerHTML += feedback;
 
       setTimeout(() => {{
-        current++;
-        showQuestion();
+        if (!quitRequested) {{
+          current++;
+          showQuestion();
+        }}
       }}, isCorrect ? 1000 : 2500);
     }}
 
     function quitTest() {{
+      quitRequested = true;
       const answered = current;
       const percent = answered > 0 ? ((score / answered) * 100).toFixed(0) : 0;
       document.getElementById("quiz").innerHTML = `
