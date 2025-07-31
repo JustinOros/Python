@@ -148,8 +148,8 @@ def generate_html(questions):
   <div class="settings">
     <span class="gear-icon">&#9881;</span>
     <div class="settings-menu" id="settingsMenu">
-      <label><input type="radio" name="theme" value="light" checked> Light Mode</label><br>
-      <label><input type="radio" name="theme" value="dark"> Dark Mode</label>
+      <label><input type="radio" name="theme" value="light">Light Mode</label><br>
+      <label><input type="radio" name="theme" value="dark" checked>Dark Mode</label>
     </div>
   </div>
 
@@ -259,6 +259,12 @@ def generate_html(questions):
           settingsMenu.classList.remove('dark');
         }}
       }});
+    }});
+
+    // Set default theme to dark on page load
+    window.addEventListener('DOMContentLoaded', () => {{
+      body.classList.add('dark-mode');
+      settingsMenu.classList.add('dark');
     }});
   </script>
 </body>
