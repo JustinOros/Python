@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # Description: Displays top system processes with color.
 # Usage: python3 color-top.py
@@ -47,45 +46,59 @@ def get_top_processes(limit):
     processes.sort(reverse=True, key=lambda p: p[0])
     return processes[:limit]
 
-def colorize(cpu, name, user, use_color):
+def colorize(cpu, name, user, use_color, line_number=None, width=0):
     name_limit = 35
     if len(name) > name_limit:
         display_name = name[:name_limit - 3] + "..."
     else:
         display_name = name
 
-    if cpu <= 25 or not use_color:
-        return f"{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}"
+    if not use_color:
+        prefix = f"{line_number:0{width}d}: " if line_number is not None else ""
+        return f"{prefix}{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}"
+
+    BG_GREEN = "\033[42m"
+    BG_YELLOW = "\033[43m"
+    BG_ORANGE = "\033[48;5;214m"
+    BG_RED = "\033[41m"
+    BLACK_TEXT = "\033[30m"
+    RESET = "\033[0m"
+
+    if cpu <= 25:
+        bg_color = BG_GREEN
+    elif cpu <= 50:
+        bg_color = BG_YELLOW
+    elif cpu <= 75:
+        bg_color = BG_ORANGE
     else:
-        YELLOW = "\033[33m"
-        ORANGE = "\033[38;5;214m"
-        RED = "\033[31m"
-        RESET_TO_GREEN = "\033[32m"
-        color = YELLOW if cpu <= 50 else ORANGE if cpu <= 75 else RED
-        cpu_str = f"{cpu:6.2f}%"
-        return f"{color}{cpu_str}  {display_name:<35}  {user[:15]:<15}{RESET_TO_GREEN}"
+        bg_color = BG_RED
+
+    prefix = f"{line_number:0{width}d}: " if line_number is not None else ""
+
+    line = f"{bg_color}{BLACK_TEXT}{prefix}{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}{RESET}"
+    return line
 
 def print_processes(limit, show_quit_hint=True, use_color=True, show_line_numbers=False):
     clear_screen()
     top_processes = get_top_processes(limit)
 
     GREEN = "\033[32m" if use_color else ""
-
-    if use_color:
-        print(GREEN, end='')
+    RESET = "\033[0m" if use_color else ""
 
     line_prefix = "Ln  " if show_line_numbers else ""
     cpu_col = " CPU"
     name_col = " Process"
     user_col = " User"
     header = f"{line_prefix}{cpu_col:<6}  {name_col:<35}  {user_col:<15}"
-    print(header)
-    print("-" * len(header))
+    print(f"{GREEN}{header}{RESET}")
+    print(f"{GREEN}{'-' * (len(header) +1)}{RESET}")
 
     width = len(str(limit))
     for i, (cpu, name, user) in enumerate(top_processes, start=1):
-        prefix = f"{i:0{width}d}: " if show_line_numbers else ""
-        print(f"{prefix}{colorize(cpu, name, user, use_color)}")
+        if show_line_numbers:
+            print(colorize(cpu, name, user, use_color, line_number=i, width=width))
+        else:
+            print(colorize(cpu, name, user, use_color))
 
     if show_quit_hint:
         print("\nPress 'q' to quit.")
