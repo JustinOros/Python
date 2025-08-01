@@ -91,7 +91,7 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
     user_col = " User"
     header = f"{line_prefix}{cpu_col:<6}  {name_col:<35}  {user_col:<15}"
     print(f"{GREEN}{header}{RESET}")
-    print(f"{GREEN}{'-' * (len(header) +1)}{RESET}")
+    print(f"{GREEN}{'-' * (len(header) + 1)}{RESET}")
 
     width = len(str(limit))
     for i, (cpu, name, user) in enumerate(top_processes, start=1):
@@ -101,7 +101,7 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
             print(colorize(cpu, name, user, use_color))
 
     if show_quit_hint:
-        print("\nPress 'q' to quit.")
+        print(f"\n{GREEN}Press 'q' to quit.{RESET}")
 
 def wait_for_keypress(timeout=1.0):
     fd = sys.stdin.fileno()
