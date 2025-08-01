@@ -12,6 +12,9 @@ import select
 import argparse
 import tty
 import termios
+import shutil
+
+first_run = True
 
 def supports_color():
     if not sys.stdout.isatty():
@@ -24,7 +27,12 @@ def supports_color():
     return False
 
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    global first_run
+    if first_run:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        first_run = False
+    else:
+        print("\033[H", end='')
 
 def get_top_processes(limit):
     for proc in psutil.process_iter(['pid']):
@@ -85,23 +93,30 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
     GREEN = "\033[32m" if use_color else ""
     RESET = "\033[0m" if use_color else ""
 
+    term_width = shutil.get_terminal_size((80, 20)).columns
+
     line_prefix = "Ln  " if show_line_numbers else ""
     cpu_col = " CPU"
     name_col = " Process"
     user_col = " User"
     header = f"{line_prefix}{cpu_col:<6}  {name_col:<35}  {user_col:<15}"
-    print(f"{GREEN}{header}{RESET}")
-    print(f"{GREEN}{'-' * (len(header) + 1)}{RESET}")
+    separator = '-' * (len(header) + 1)
+    
+    print(f"{GREEN}{header.ljust(term_width)}{RESET}")
+    print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
 
     width = len(str(limit))
     for i, (cpu, name, user) in enumerate(top_processes, start=1):
         if show_line_numbers:
-            print(colorize(cpu, name, user, use_color, line_number=i, width=width))
+            line = colorize(cpu, name, user, use_color, line_number=i, width=width)
         else:
-            print(colorize(cpu, name, user, use_color))
+            line = colorize(cpu, name, user, use_color)
+        print(line.ljust(term_width))
+
+    print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
 
     if show_quit_hint:
-        print(f"\n{GREEN}Press 'q' to quit.{RESET}")
+        print(f"\n{GREEN}{'Press \'q\' to quit.'.ljust(term_width)}{RESET}")
 
 def wait_for_keypress(timeout=1.0):
     fd = sys.stdin.fileno()
