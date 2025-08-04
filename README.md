@@ -48,10 +48,10 @@ python3 chatgpt.py
 python3 diff-web.py --domain example.com --email user@example.com --hook example.com/hook
 ```
 
-### `color-top.py`  
+### `topless.py`  
 **Description:** Display top system processes with color.  
 ```bash
-python3 color-top.py
+python3 topless.py
 ```
 
 ---
