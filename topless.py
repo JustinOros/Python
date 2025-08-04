@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Description: Displays top system processes with color.
+# Description: Display top system processes with less mess and more color.
 # Usage: python3 color-top.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
@@ -44,17 +44,18 @@ def get_top_processes(limit):
     time.sleep(0.1)
 
     processes = []
-    for proc in psutil.process_iter(['cpu_percent', 'name', 'username']):
+    for proc in psutil.process_iter(['cpu_percent', 'memory_percent', 'name', 'username']):
         try:
             cpu = proc.info['cpu_percent']
-            if cpu is not None:
-                processes.append((cpu, proc.info['name'], proc.info['username']))
+            mem = proc.info['memory_percent']
+            if cpu is not None and mem is not None:
+                processes.append((cpu, mem, proc.info['name'], proc.info['username']))
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
     processes.sort(reverse=True, key=lambda p: p[0])
     return processes[:limit]
 
-def colorize(cpu, name, user, use_color, line_number=None, width=0):
+def colorize(cpu, mem, name, user, use_color, line_number=None, width=0):
     name_limit = 35
     if len(name) > name_limit:
         display_name = name[:name_limit - 3] + "..."
@@ -63,7 +64,7 @@ def colorize(cpu, name, user, use_color, line_number=None, width=0):
 
     if not use_color:
         prefix = f"{line_number:0{width}d}: " if line_number is not None else ""
-        return f"{prefix}{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}"
+        return f"{prefix}{cpu:6.2f}%  {mem:6.2f}%  {display_name:<35}  {user[:15]:<15}"
 
     BG_GREEN = "\033[42m"
     BG_YELLOW = "\033[43m"
@@ -82,8 +83,7 @@ def colorize(cpu, name, user, use_color, line_number=None, width=0):
         bg_color = BG_RED
 
     prefix = f"{line_number:0{width}d}: " if line_number is not None else ""
-
-    line = f"{bg_color}{BLACK_TEXT}{prefix}{cpu:6.2f}%  {display_name:<35}  {user[:15]:<15}{RESET}"
+    line = f"{bg_color}{BLACK_TEXT}{prefix}{cpu:6.2f}%  {mem:6.2f}%  {display_name:<35}  {user[:15]:<15}{RESET}"
     return line
 
 def print_processes(limit, show_quit_hint=True, use_color=True, show_line_numbers=False):
@@ -97,20 +97,21 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
 
     line_prefix = "Ln  " if show_line_numbers else ""
     cpu_col = " CPU"
-    name_col = " Process"
-    user_col = " User"
-    header = f"{line_prefix}{cpu_col:<6}  {name_col:<35}  {user_col:<15}"
+    mem_col = "   MEM"
+    name_col = "  Process"
+    user_col = "  User"
+    header = f"{line_prefix}{cpu_col:<6}  {mem_col:<6}  {name_col:<35}  {user_col:<15}"
     separator = '-' * (len(header) + 1)
-    
+
     print(f"{GREEN}{header.ljust(term_width)}{RESET}")
     print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
 
     width = len(str(limit))
-    for i, (cpu, name, user) in enumerate(top_processes, start=1):
+    for i, (cpu, mem, name, user) in enumerate(top_processes, start=1):
         if show_line_numbers:
-            line = colorize(cpu, name, user, use_color, line_number=i, width=width)
+            line = colorize(cpu, mem, name, user, use_color, line_number=i, width=width)
         else:
-            line = colorize(cpu, name, user, use_color)
+            line = colorize(cpu, mem, name, user, use_color)
         print(line.ljust(term_width))
 
     print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
@@ -136,7 +137,7 @@ class SortedHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Monitor system processes by CPU usage.",
+        description="Monitor system processes by CPU and memory usage.",
         formatter_class=SortedHelpFormatter
     )
     parser.add_argument("-i", "--interval", type=int, default=1, help="Refresh interval in seconds.")
