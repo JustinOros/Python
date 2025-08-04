@@ -167,9 +167,10 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
             line = colorize(cpu, mem, name, user, config, use_color)
         print(f"{pad}{line}")
 
-    bottom_bar = "Sort: [C]PU [M]EM [P]ROC [U]SER or [Q]UIT"
+    bottom_bar = "PRESS [C]PU [M]EM [P]ROC [U]SER TO SORT OR [Q]UIT."
     footer = bottom_bar if show_quit_hint else ' '
-    print(f"{pad}{BG_GRAY}{BLACK_TEXT}{footer.ljust(block_width)}\033[0m")
+    centered_footer = footer.center(block_width)
+    print(f"{pad}{BG_GRAY}{BLACK_TEXT}{centered_footer}\033[0m")
 
 def timed_input(timeout=0.1):
     fd = sys.stdin.fileno()
@@ -187,7 +188,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', type=int, help="Number of processes to display")
     parser.add_argument('--no-color', action='store_true', help="Disable color output")
-    parser.add_argument('--lines', action='store_true', help="Show line numbers")
+    parser.add_argument('-l', '--lines', action='store_true', help="Show line numbers")
     args = parser.parse_args()
 
     config = load_or_create_config()
