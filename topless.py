@@ -18,9 +18,9 @@ CONFIG_PATH = os.path.expanduser('~/.topless')
 
 DEFAULT_CONFIG = {
     'text_color': 'black',
-    'bar_color': 'green',
+    'bar_color': 'gray',
     'low_value': 0,
-    'low_color': 'green',
+    'low_color': 'gray',
     'medium_value': 25,
     'medium_color': 'yellow',
     'medium_high_value': 50,
@@ -153,13 +153,16 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
     print(f"{pad}{BG_GRAY}{BLACK_TEXT}{header}\033[0m")
 
     width = len(str(limit))
+    line_number_fmt = f"{{:0{width}d}}"
+
     for i, proc in enumerate(top_processes, start=1):
         cpu = proc['cpu']
         mem = proc['mem']
         name = proc['name']
         user = proc['user']
         if show_line_numbers:
-            line = colorize(cpu, mem, name, user, config, use_color, line_number=i, width=width)
+            formatted_line_number = line_number_fmt.format(i)
+            line = colorize(cpu, mem, name, user, config, use_color, line_number=formatted_line_number, width=width)
         else:
             line = colorize(cpu, mem, name, user, config, use_color)
         print(f"{pad}{line}")
