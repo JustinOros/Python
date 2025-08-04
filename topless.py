@@ -18,9 +18,9 @@ CONFIG_PATH = os.path.expanduser('~/.topless')
 
 DEFAULT_CONFIG = {
     'text_color': 'black',
-    'bar_color': 'gray',
+    'bar_color': 'green',
     'low_value': 0,
-    'low_color': 'gray',
+    'low_color': 'green',
     'medium_value': 25,
     'medium_color': 'yellow',
     'medium_high_value': 50,
