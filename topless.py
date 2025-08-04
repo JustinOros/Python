@@ -117,14 +117,14 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
         else:
             return f"  {label}".ljust(width)
 
-    cpu_col = col_label('cpu', "CPU", 7)
+    cpu_col = col_label('cpu', "CPU", 6)
     mem_col = col_label('mem', "MEM", 6)
     name_col = col_label('name', "Process", 35)
     user_col = col_label('user', "User", 15)
 
     line_prefix = "Ln  " if show_line_numbers else ""
     header = f"{line_prefix}{cpu_col}  {mem_col}  {name_col}  {user_col}"
-    separator = '-' * (len(header) + 1)
+    separator = '-' * (len(header) + 2)  # <-- Increased length by 1 here
     term_width = shutil.get_terminal_size((80, 20)).columns
 
     print(f"{GREEN}{header.ljust(term_width)}{RESET}")
@@ -142,15 +142,15 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
             line = colorize(cpu, mem, name, user, use_color)
         print(line.ljust(term_width))
 
-    print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
+    print(f"{GREEN}{separator.ljust(term_width)}{RESET}", end='')
     if show_quit_hint:
         print((
-            f"\n{GREEN}Sort: "
+            f"{GREEN} Sort: "
             f"[{UNDERLINE}C{RESET_UNDERLINE}]PU "
             f"[{UNDERLINE}M{RESET_UNDERLINE}]EM "
             f"[{UNDERLINE}P{RESET_UNDERLINE}]rocess "
             f"[{UNDERLINE}U{RESET_UNDERLINE}]ser or "
-            f"[{UNDERLINE}Q{RESET_UNDERLINE}]uit."
+            f"[{UNDERLINE}Q{RESET_UNDERLINE}]uit.{RESET}"
         ).ljust(term_width))
 
 def wait_for_keypress(timeout=1.0):
