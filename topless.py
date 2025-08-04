@@ -112,7 +112,7 @@ def colorize(cpu, mem, name, user, config, use_color=True, line_number=None, wid
     elif cpu >= config['medium_value']:
         color = ANSI_COLORS.get(config['medium_color'], "\033[93m")
     elif cpu >= config['low_value']:
-        color = ANSI_COLORS.get(config['low_color'], "\033[90m")  # gray
+        color = ANSI_COLORS.get(config['low_color'], "\033[90m")
     else:
         color = ANSI_COLORS.get(config['text_color'], "\033[30m")
 
@@ -131,27 +131,26 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
 
     BG_GRAY = ANSI_BG_COLORS.get(config['bar_color'], "\033[100m") if use_color else ""
     BLACK_TEXT = ANSI_COLORS.get(config['text_color'], "\033[30m") if use_color else ""
-
     ARROW_UP = "↑"
     ARROW_DOWN = "↓"
-
     arrow = ARROW_DOWN if reverse else ARROW_UP
 
     def col_label(col_key, label, width):
-        if sort_key == col_key:
-            return f"{arrow} {label}".ljust(width)
-        else:
-            return f"  {label}".ljust(width)
+        return f"{arrow if sort_key == col_key else ' '} {label}".ljust(width)
 
     cpu_col = col_label('cpu', "CPU", 6)
     mem_col = col_label('mem', "MEM", 6)
     name_col = col_label('name', "Process", 35)
     user_col = col_label('user', "User", 15)
-
     line_prefix = "Ln  " if show_line_numbers else ""
     header = f"{line_prefix}{cpu_col}  {mem_col}  {name_col}  {user_col}"
 
-    print(f"{BG_GRAY}{BLACK_TEXT}{header.ljust(len(header))}\033[0m")
+    term_width = get_terminal_size().columns
+    block_width = len(header)
+    padding = max((term_width - block_width) // 2, 0)
+    pad = ' ' * padding
+
+    print(f"{pad}{BG_GRAY}{BLACK_TEXT}{header}\033[0m")
 
     width = len(str(limit))
     for i, proc in enumerate(top_processes, start=1):
@@ -163,13 +162,11 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
             line = colorize(cpu, mem, name, user, config, use_color, line_number=i, width=width)
         else:
             line = colorize(cpu, mem, name, user, config, use_color)
-        print(line.ljust(len(header)))
+        print(f"{pad}{line}")
 
     bottom_bar = "Sort: [C]PU [M]EM [P]rocess [U]ser or [Q]uit."
-    if show_quit_hint:
-        print(f"{BG_GRAY}{BLACK_TEXT}{bottom_bar.ljust(len(header))}\033[0m")
-    else:
-        print(f"{BG_GRAY}{' '.ljust(len(header))}\033[0m")
+    footer = bottom_bar if show_quit_hint else ' '
+    print(f"{pad}{BG_GRAY}{BLACK_TEXT}{footer.ljust(block_width)}\033[0m")
 
 def timed_input(timeout=0.1):
     fd = sys.stdin.fileno()
@@ -191,13 +188,10 @@ def main():
     args = parser.parse_args()
 
     config = load_or_create_config()
-
     use_color = not args.no_color
     show_line_numbers = args.lines
-
     term_height = get_terminal_size().lines
     limit = args.n if args.n else max(5, term_height - 10)
-
     sort_key = 'cpu'
     reverse = True
     refresh_count = 0
@@ -206,7 +200,6 @@ def main():
     while True:
         elapsed = time.time() - start_time
         show_quit = True
-
         print_processes(limit, sort_key, reverse, show_quit, use_color, show_line_numbers, config=config)
 
         key = timed_input(1)
