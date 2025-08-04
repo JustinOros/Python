@@ -140,8 +140,8 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
 
     cpu_col = col_label('cpu', "CPU", 6)
     mem_col = col_label('mem', "MEM", 6)
-    name_col = col_label('name', "Process", 35)
-    user_col = col_label('user', "User", 15)
+    name_col = col_label('name', "PROC", 35)
+    user_col = col_label('user', "USER", 15)
     line_prefix = "Ln  " if show_line_numbers else ""
     header = f"{line_prefix}{cpu_col}  {mem_col}  {name_col}  {user_col}"
 
@@ -164,7 +164,7 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
             line = colorize(cpu, mem, name, user, config, use_color)
         print(f"{pad}{line}")
 
-    bottom_bar = "Sort: [C]PU [M]EM [P]rocess [U]ser or [Q]uit."
+    bottom_bar = "Sort: [C]PU [M]EM [P]ROC [U]SER or [Q]UIT"
     footer = bottom_bar if show_quit_hint else ' '
     print(f"{pad}{BG_GRAY}{BLACK_TEXT}{footer.ljust(block_width)}\033[0m")
 
