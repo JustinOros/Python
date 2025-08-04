@@ -14,6 +14,75 @@ import tty
 import termios
 from shutil import get_terminal_size
 
+CONFIG_PATH = os.path.expanduser('~/.topless')
+
+DEFAULT_CONFIG = {
+    'text_color': 'black',
+    'bar_color': 'gray',
+    'low_value': 0,
+    'low_color': 'gray',
+    'medium_value': 25,
+    'medium_color': 'yellow',
+    'medium_high_value': 50,
+    'medium_high_color': 'orange',
+    'high_value': 75,
+    'high_color': 'red',
+}
+
+ANSI_COLORS = {
+    'black': "\033[30m",
+    'red': "\033[91m",
+    'green': "\033[92m",
+    'yellow': "\033[93m",
+    'blue': "\033[94m",
+    'magenta': "\033[95m",
+    'cyan': "\033[96m",
+    'white': "\033[97m",
+    'gray': "\033[90m",
+    'orange': "\033[38;5;214m",
+}
+
+ANSI_BG_COLORS = {
+    'black': "\033[40m",
+    'red': "\033[41m",
+    'green': "\033[42m",
+    'yellow': "\033[43m",
+    'blue': "\033[44m",
+    'magenta': "\033[45m",
+    'cyan': "\033[46m",
+    'white': "\033[47m",
+    'gray': "\033[100m",
+    'orange': "\033[48;5;214m",
+}
+
+def load_or_create_config():
+    if not os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'w') as f:
+            for k, v in DEFAULT_CONFIG.items():
+                f.write(f"{k}={v}\n")
+
+    config = DEFAULT_CONFIG.copy()
+    try:
+        with open(CONFIG_PATH, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or '=' not in line or line.startswith('#'):
+                    continue
+                key, val = line.split('=', 1)
+                key = key.strip()
+                val = val.strip()
+                if key in config:
+                    if key.endswith('_value'):
+                        try:
+                            config[key] = float(val)
+                        except ValueError:
+                            pass
+                    else:
+                        config[key] = val.lower()
+    except Exception:
+        pass
+    return config
+
 def clear_screen():
     print("\033[H\033[J", end='')
 
@@ -32,18 +101,20 @@ def get_top_processes(limit=10, sort_key='cpu', reverse=True):
             continue
     return sorted(processes, key=lambda x: x[sort_key], reverse=reverse)[:limit]
 
-def colorize(cpu, mem, name, user, use_color=True, line_number=None, width=0):
+def colorize(cpu, mem, name, user, config, use_color=True, line_number=None, width=0):
     if not use_color:
         return f"{str(line_number).rjust(width)}  {cpu:5.1f}    {mem:5.1f}    {name:35}  {user:15}" if line_number else f"{cpu:5.1f}    {mem:5.1f}    {name:35}  {user:15}"
 
-    if cpu >= 50:
-        color = "\033[91m"  # red
-    elif cpu >= 20:
-        color = "\033[93m"  # yellow
-    elif cpu >= 10:
-        color = "\033[92m"  # green
+    if cpu >= config['high_value']:
+        color = ANSI_COLORS.get(config['high_color'], "\033[91m")
+    elif cpu >= config['medium_high_value']:
+        color = ANSI_COLORS.get(config['medium_high_color'], "\033[38;5;214m")
+    elif cpu >= config['medium_value']:
+        color = ANSI_COLORS.get(config['medium_color'], "\033[93m")
+    elif cpu >= config['low_value']:
+        color = ANSI_COLORS.get(config['low_color'], "\033[90m")  # gray
     else:
-        color = "\033[90m"  # gray
+        color = ANSI_COLORS.get(config['text_color'], "\033[30m")
 
     RESET = "\033[0m"
     line = f"{cpu:5.1f}    {mem:5.1f}    {name:35}  {user:15}"
@@ -51,19 +122,18 @@ def colorize(cpu, mem, name, user, use_color=True, line_number=None, width=0):
         return f"{color}{str(line_number).rjust(width)}  {line}{RESET}"
     return f"{color}{line}{RESET}"
 
-def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, use_color=True, show_line_numbers=False):
+def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, use_color=True, show_line_numbers=False, config=None):
+    if config is None:
+        config = DEFAULT_CONFIG
+
     clear_screen()
     top_processes = get_top_processes(limit, sort_key=sort_key, reverse=reverse)
 
-    GREEN = "\033[32m" if use_color else ""
-    RESET = "\033[0m" if use_color else ""
-    UNDERLINE = "\033[4m" if use_color else ""
-    RESET_UNDERLINE = "\033[24m" if use_color else ""
+    BG_GRAY = ANSI_BG_COLORS.get(config['bar_color'], "\033[100m") if use_color else ""
+    BLACK_TEXT = ANSI_COLORS.get(config['text_color'], "\033[30m") if use_color else ""
+
     ARROW_UP = "↑"
     ARROW_DOWN = "↓"
-
-    BG_GRAY = "\033[100m" if use_color else ""
-    BLACK_TEXT = "\033[30m" if use_color else ""
 
     arrow = ARROW_DOWN if reverse else ARROW_UP
 
@@ -73,15 +143,15 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
         else:
             return f"  {label}".ljust(width)
 
-    cpu_col = col_label('cpu', "CPU", 7)
-    mem_col = col_label('mem', "MEM", 5)
+    cpu_col = col_label('cpu', "CPU", 6)
+    mem_col = col_label('mem', "MEM", 6)
     name_col = col_label('name', "Process", 35)
     user_col = col_label('user', "User", 15)
 
     line_prefix = "Ln  " if show_line_numbers else ""
     header = f"{line_prefix}{cpu_col}  {mem_col}  {name_col}  {user_col}"
 
-    print(f"{BG_GRAY}{BLACK_TEXT}{header.ljust(len(header))}{RESET}")
+    print(f"{BG_GRAY}{BLACK_TEXT}{header.ljust(len(header))}\033[0m")
 
     width = len(str(limit))
     for i, proc in enumerate(top_processes, start=1):
@@ -90,16 +160,16 @@ def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, us
         name = proc['name']
         user = proc['user']
         if show_line_numbers:
-            line = colorize(cpu, mem, name, user, use_color, line_number=i, width=width)
+            line = colorize(cpu, mem, name, user, config, use_color, line_number=i, width=width)
         else:
-            line = colorize(cpu, mem, name, user, use_color)
+            line = colorize(cpu, mem, name, user, config, use_color)
         print(line.ljust(len(header)))
 
     bottom_bar = "Sort: [C]PU [M]EM [P]rocess [U]ser or [Q]uit."
     if show_quit_hint:
-        print(f"{BG_GRAY}{BLACK_TEXT}{bottom_bar.ljust(len(header))}{RESET}")
+        print(f"{BG_GRAY}{BLACK_TEXT}{bottom_bar.ljust(len(header))}\033[0m")
     else:
-        print(f"{BG_GRAY}{' '.ljust(len(header))}{RESET}")
+        print(f"{BG_GRAY}{' '.ljust(len(header))}\033[0m")
 
 def timed_input(timeout=0.1):
     fd = sys.stdin.fileno()
@@ -120,6 +190,8 @@ def main():
     parser.add_argument('--lines', action='store_true', help="Show line numbers")
     args = parser.parse_args()
 
+    config = load_or_create_config()
+
     use_color = not args.no_color
     show_line_numbers = args.lines
 
@@ -135,7 +207,7 @@ def main():
         elapsed = time.time() - start_time
         show_quit = True
 
-        print_processes(limit, sort_key, reverse, show_quit, use_color, show_line_numbers)
+        print_processes(limit, sort_key, reverse, show_quit, use_color, show_line_numbers, config=config)
 
         key = timed_input(1)
         refresh_count += 1
