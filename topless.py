@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: Display top system processes with less mess and more color.
-# Usage: python3 color-top.py
+# Usage: python3 topless.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
@@ -15,6 +15,8 @@ import termios
 import shutil
 
 first_run = True
+current_sort_key = 'cpu'
+reverse_sort = True
 
 def supports_color():
     if not sys.stdout.isatty():
@@ -34,7 +36,7 @@ def clear_screen():
     else:
         print("\033[H", end='')
 
-def get_top_processes(limit):
+def get_top_processes(limit, sort_key='cpu', reverse=True):
     for proc in psutil.process_iter(['pid']):
         try:
             proc.cpu_percent(interval=None)
@@ -48,11 +50,21 @@ def get_top_processes(limit):
         try:
             cpu = proc.info['cpu_percent']
             mem = proc.info['memory_percent']
-            if cpu is not None and mem is not None:
-                processes.append((cpu, mem, proc.info['name'], proc.info['username']))
+            name = proc.info['name']
+            user = proc.info['username']
+            processes.append({'cpu': cpu, 'mem': mem, 'name': name, 'user': user})
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-    processes.sort(reverse=True, key=lambda p: p[0])
+
+    processes = [
+        p for p in processes
+        if p['cpu'] is not None and
+           p['mem'] is not None and
+           p['name'] is not None and
+           p['user'] is not None
+    ]
+
+    processes.sort(key=lambda p: p[sort_key], reverse=reverse)
     return processes[:limit]
 
 def colorize(cpu, mem, name, user, use_color, line_number=None, width=0):
@@ -86,28 +98,44 @@ def colorize(cpu, mem, name, user, use_color, line_number=None, width=0):
     line = f"{bg_color}{BLACK_TEXT}{prefix}{cpu:6.2f}%  {mem:6.2f}%  {display_name:<35}  {user[:15]:<15}{RESET}"
     return line
 
-def print_processes(limit, show_quit_hint=True, use_color=True, show_line_numbers=False):
+def print_processes(limit, sort_key='cpu', reverse=True, show_quit_hint=True, use_color=True, show_line_numbers=False):
     clear_screen()
-    top_processes = get_top_processes(limit)
+    top_processes = get_top_processes(limit, sort_key=sort_key, reverse=reverse)
 
     GREEN = "\033[32m" if use_color else ""
     RESET = "\033[0m" if use_color else ""
+    UNDERLINE = "\033[4m" if use_color else ""
+    RESET_UNDERLINE = "\033[24m" if use_color else ""
+    ARROW_UP = "↑"
+    ARROW_DOWN = "↓"
 
-    term_width = shutil.get_terminal_size((80, 20)).columns
+    arrow = ARROW_DOWN if reverse else ARROW_UP
+
+    def col_label(col_key, label, width):
+        if sort_key == col_key:
+            return f"{arrow} {label}".ljust(width)
+        else:
+            return f"  {label}".ljust(width)
+
+    cpu_col = col_label('cpu', "CPU", 7)
+    mem_col = col_label('mem', "MEM", 6)
+    name_col = col_label('name', "Process", 35)
+    user_col = col_label('user', "User", 15)
 
     line_prefix = "Ln  " if show_line_numbers else ""
-    cpu_col = " CPU"
-    mem_col = "   MEM"
-    name_col = "  Process"
-    user_col = "  User"
-    header = f"{line_prefix}{cpu_col:<6}  {mem_col:<6}  {name_col:<35}  {user_col:<15}"
+    header = f"{line_prefix}{cpu_col}  {mem_col}  {name_col}  {user_col}"
     separator = '-' * (len(header) + 1)
+    term_width = shutil.get_terminal_size((80, 20)).columns
 
     print(f"{GREEN}{header.ljust(term_width)}{RESET}")
     print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
 
     width = len(str(limit))
-    for i, (cpu, mem, name, user) in enumerate(top_processes, start=1):
+    for i, proc in enumerate(top_processes, start=1):
+        cpu = proc['cpu']
+        mem = proc['mem']
+        name = proc['name']
+        user = proc['user']
         if show_line_numbers:
             line = colorize(cpu, mem, name, user, use_color, line_number=i, width=width)
         else:
@@ -115,9 +143,15 @@ def print_processes(limit, show_quit_hint=True, use_color=True, show_line_number
         print(line.ljust(term_width))
 
     print(f"{GREEN}{separator.ljust(term_width)}{RESET}")
-
     if show_quit_hint:
-        print(f"\n{GREEN}{'Press \'q\' to quit.'.ljust(term_width)}{RESET}")
+        print((
+            f"\n{GREEN}Sort: "
+            f"[{UNDERLINE}C{RESET_UNDERLINE}]PU "
+            f"[{UNDERLINE}M{RESET_UNDERLINE}]EM "
+            f"[{UNDERLINE}P{RESET_UNDERLINE}]rocess "
+            f"[{UNDERLINE}U{RESET_UNDERLINE}]ser or "
+            f"[{UNDERLINE}Q{RESET_UNDERLINE}]uit."
+        ).ljust(term_width))
 
 def wait_for_keypress(timeout=1.0):
     fd = sys.stdin.fileno()
@@ -136,6 +170,8 @@ class SortedHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         super().add_arguments(actions)
 
 def main():
+    global current_sort_key, reverse_sort
+
     parser = argparse.ArgumentParser(
         description="Monitor system processes by CPU and memory usage.",
         formatter_class=SortedHelpFormatter
@@ -145,6 +181,7 @@ def main():
     parser.add_argument("-n", "--number", type=int, default=10, help="Number of processes to monitor.")
     parser.add_argument("--no-color", action="store_true", help="Disable colored output.")
     args = parser.parse_args()
+
     limit = args.number
     interval = max(1, args.interval)
 
@@ -159,10 +196,28 @@ def main():
             refresh_count += 1
             elapsed = time.time() - start_time
             show_quit = refresh_count < 3 and elapsed < 3
-            print_processes(limit, show_quit_hint=show_quit, use_color=use_color, show_line_numbers=show_lines)
+            print_processes(
+                limit,
+                sort_key=current_sort_key,
+                reverse=reverse_sort,
+                show_quit_hint=show_quit,
+                use_color=use_color,
+                show_line_numbers=show_lines
+            )
+
             key = wait_for_keypress(timeout=interval)
-            if key and key.lower() == 'q':
-                break
+            if key:
+                key = key.lower()
+                if key == 'q':
+                    break
+                elif key in ['c', 'm', 'p', 'u']:
+                    key_map = {'c': 'cpu', 'm': 'mem', 'p': 'name', 'u': 'user'}
+                    chosen_sort = key_map[key]
+                    if current_sort_key == chosen_sort:
+                        reverse_sort = not reverse_sort
+                    else:
+                        current_sort_key = chosen_sort
+                        reverse_sort = True
     except KeyboardInterrupt:
         print("\nProgram interrupted. Exiting...")
 
