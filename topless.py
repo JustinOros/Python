@@ -194,14 +194,14 @@ def main():
     config = load_or_create_config()
     use_color = not args.no_color
     show_line_numbers = args.lines
-    term_height = get_terminal_size().lines
-    limit = args.n if args.n else max(5, term_height - 10)
     sort_key = 'cpu'
     reverse = True
     refresh_count = 0
     start_time = time.time()
 
     while True:
+        term_height = get_terminal_size().lines
+        limit = args.n if args.n else max(1, term_height - 3)
         elapsed = time.time() - start_time
         show_quit = True
         print_processes(limit, sort_key, reverse, show_quit, use_color, show_line_numbers, config=config)
