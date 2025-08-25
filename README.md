@@ -117,6 +117,17 @@ python3 maguro-game.py
 - Movement: `A` (Left), `D` (Right) (Keyboard) or Joy-pad (Controller)  
 - Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
 
+### `tankwars-game.py`  
+**Description:** Red vs Blue tanks game.  
+```bash
+python3 tankwars-game.py
+```
+
+**Controls:**  
+- Movement: `W`, `A`, `S`, `D` (Keyboard) or Direction-pad (Controller)  
+- Fire: `Spacebar` (Keyboard), Primary-click (Mouse), or `A` button (Controller)  
+- Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
+
 ---
 
 _Designed and tested on Mac and Linux. May or may not work on Windows. \*shrug\*_
