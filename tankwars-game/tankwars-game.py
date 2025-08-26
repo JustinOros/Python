@@ -74,10 +74,10 @@ tank_model = None
 tank_display_list = None
 TANK_SCALE = 0.003
 
-if os.path.isfile("tank-tiger.obj"):
+if os.path.isfile("tank.obj"):
     try:
         import pywavefront
-        tank_model = pywavefront.Wavefront("tank-tiger.obj", create_materials=True, collect_faces=True, parse=True)
+        tank_model = pywavefront.Wavefront("tank.obj", create_materials=True, collect_faces=True, parse=True)
         OBJ_AVAILABLE = True
         tank_display_list = glGenLists(1)
         glNewList(tank_display_list, GL_COMPILE)
