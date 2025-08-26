@@ -22,6 +22,7 @@ sound_move = pygame.mixer.Sound("sound-tank-movement.mp3")
 sound_turret = pygame.mixer.Sound("sound-tank-turret.mp3")
 sound_explosion = pygame.mixer.Sound("sound-tank-explosion.mp3")
 sound_player_explode = pygame.mixer.Sound("sound-tank-player-explodes.mp3")
+sound_alarm = pygame.mixer.Sound("sound-tank-alarm.mp3")
 
 pygame.joystick.init()
 joysticks = []
@@ -66,6 +67,7 @@ player_life = 100
 player_tank_visible = True
 game_over = False
 game_over_time = 0
+alarm_playing = False
 
 OBJ_AVAILABLE = False
 tank_model = None
@@ -124,19 +126,41 @@ def spawn_enemies(level):
                 })
                 break
 
+def draw_sky():
+    glDisable(GL_LIGHTING)
+    glPushMatrix()
+    glLoadIdentity()
+    glBegin(GL_QUADS)
+    glColor3f(0.53, 0.81, 0.92)
+    glVertex3f(-500, -500, -500)
+    glVertex3f(500, -500, -500)
+    glVertex3f(500, -500, 500)
+    glVertex3f(-500, -500, 500)
+    glColor3f(0.2, 0.5, 0.9)
+    glVertex3f(-500, 0, -500)
+    glVertex3f(500, 0, -500)
+    glVertex3f(500, 0, 500)
+    glVertex3f(-500, 0, 500)
+    glEnd()
+    glPopMatrix()
+    glEnable(GL_LIGHTING)
+
 def draw_grid():
     glDisable(GL_LIGHTING)
-    glColor3f(0,1,0)
     glBegin(GL_LINES)
-    grid_range=50
-    step=1
-    px,pz=player_pos[0],player_pos[2]
-    for i in range(int(px-grid_range), int(px+grid_range)+1, step):
-        glVertex3f(i,0,int(pz-grid_range))
-        glVertex3f(i,0,int(pz+grid_range))
-    for i in range(int(pz-grid_range), int(pz+grid_range)+1, step):
-        glVertex3f(int(px-grid_range),0,i)
-        glVertex3f(int(px+grid_range),0,i)
+    grid_range = 200
+    step = 1
+    px, pz = player_pos[0], player_pos[2]
+    for i in range(int(px - grid_range), int(px + grid_range) + 1, step):
+        fade = max(0.2, 1 - abs(i - px) / grid_range)
+        glColor3f(0, 1*fade, 1*fade)
+        glVertex3f(i,0,pz-grid_range)
+        glVertex3f(i,0,pz+grid_range)
+    for i in range(int(pz - grid_range), int(pz + grid_range) + 1, step):
+        fade = max(0.2, 1 - abs(i - pz) / grid_range)
+        glColor3f(0, 1*fade, 1*fade)
+        glVertex3f(px-grid_range,0,i)
+        glVertex3f(px+grid_range,0,i)
     glEnd()
     glEnable(GL_LIGHTING)
 
@@ -218,10 +242,18 @@ def draw_player_tank(x, z, direction=0, turret_target=None):
     glPopMatrix()
 
 def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
+    distance = math.hypot(x - player_pos[0], z - player_pos[2])
+    if distance >= 100:
+        return
+    alpha = 1.0
+    if distance > 90:
+        alpha = max(0, 1 - (distance-90)/10)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glColor4f(1,0,0,alpha)
     glPushMatrix()
     glTranslatef(x, 0, z)
     glRotatef(body_direction + 90, 0, 1, 0)
-    glColor3f(1,0,0)
     if OBJ_AVAILABLE and tank_display_list:
         glCallList(tank_display_list)
     else:
@@ -233,12 +265,13 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
         glPushMatrix()
         glRotatef(turret_angle - (body_direction + 90), 0,1,0)
         glTranslatef(0,1,1.5)
-        glColor3f(1,1,0)
+        glColor4f(1,1,0,alpha)
         if not OBJ_AVAILABLE:
             glScalef(0.2,0.2,2)
             glutSolidCube(1)
         glPopMatrix()
     glPopMatrix()
+    glDisable(GL_BLEND)
 
 def check_tank_collision(new_pos, ignore_enemy=None, is_player=False):
     for t in enemies:
@@ -326,7 +359,6 @@ def move_enemies(dt):
 spawn_enemies(level)
 clock = pygame.time.Clock()
 running=True
-
 radar_sweep_angle=0.0
 
 while running:
@@ -334,19 +366,21 @@ while running:
     keys=pygame.key.get_pressed()
     move_vector=[0,0,0]
     fire_pressed=False
+    speed_multiplier = 2 if keys[K_LSHIFT] or keys[K_RSHIFT] else 1
+
     for joystick in joysticks:
         lx=joystick.get_axis(0)
         ly=joystick.get_axis(1)
-        if abs(lx)>0.2: move_vector[0]+=math.cos(math.radians(player_angle))*lx*dt*5; move_vector[2]+=math.sin(math.radians(player_angle))*lx*dt*5
-        if abs(ly)>0.2: move_vector[0]+=math.sin(math.radians(player_angle))*(-ly)*dt*5; move_vector[2]-=math.cos(math.radians(player_angle))*(-ly)*dt*5
+        if abs(lx)>0.2: move_vector[0]+=math.cos(math.radians(player_angle))*lx*dt*5*speed_multiplier; move_vector[2]+=math.sin(math.radians(player_angle))*lx*dt*5*speed_multiplier
+        if abs(ly)>0.2: move_vector[0]+=math.sin(math.radians(player_angle))*(-ly)*dt*5*speed_multiplier; move_vector[2]-=math.cos(math.radians(player_angle))*(-ly)*dt*5*speed_multiplier
         if joystick.get_button(0) or joystick.get_button(4) or joystick.get_button(5): fire_pressed=True
         if joystick.get_button(6): crosshair_offset-=5
         if joystick.get_button(7): crosshair_offset+=5
 
-    if keys[K_w]: move_vector[0]+=math.sin(math.radians(player_angle))*5*dt; move_vector[2]-=math.cos(math.radians(player_angle))*5*dt
-    if keys[K_s]: move_vector[0]-=math.sin(math.radians(player_angle))*5*dt; move_vector[2]+=math.cos(math.radians(player_angle))*5*dt
-    if keys[K_a]: move_vector[0]-=math.cos(math.radians(player_angle))*5*dt; move_vector[2]-=math.sin(math.radians(player_angle))*5*dt
-    if keys[K_d]: move_vector[0]+=math.cos(math.radians(player_angle))*5*dt; move_vector[2]+=math.sin(math.radians(player_angle))*5*dt
+    if keys[K_w]: move_vector[0]+=math.sin(math.radians(player_angle))*5*dt*speed_multiplier; move_vector[2]-=math.cos(math.radians(player_angle))*5*dt*speed_multiplier
+    if keys[K_s]: move_vector[0]-=math.sin(math.radians(player_angle))*5*dt*speed_multiplier; move_vector[2]+=math.cos(math.radians(player_angle))*5*dt*speed_multiplier
+    if keys[K_a]: move_vector[0]-=math.cos(math.radians(player_angle))*5*dt*speed_multiplier; move_vector[2]-=math.sin(math.radians(player_angle))*5*dt*speed_multiplier
+    if keys[K_d]: move_vector[0]+=math.cos(math.radians(player_angle))*5*dt*speed_multiplier; move_vector[2]+=math.sin(math.radians(player_angle))*5*dt*speed_multiplier
 
     moving=any(move_vector)
     if moving and not moving_sound_playing: sound_move.play(-1); moving_sound_playing=True
@@ -429,6 +463,13 @@ while running:
         if keep: new_enemy_bullets.append(b)
     enemy_bullets=new_enemy_bullets
 
+    if player_life <= 25 and not alarm_playing:
+        sound_alarm.play(-1)
+        alarm_playing = True
+    elif player_life > 25 and alarm_playing:
+        sound_alarm.stop()
+        alarm_playing = False
+
     move_enemies(dt)
     if len(enemies)==0 and not game_over:
         level+=1
@@ -449,6 +490,8 @@ while running:
     glLightfv(GL_LIGHT0, GL_POSITION, (eye_x,eye_y,eye_z,1))
 
     turret_target=[center_x,center_y,center_z]
+
+    draw_sky()
     draw_grid()
     if player_tank_visible:
         draw_player_tank(player_pos[0],player_pos[2],player_angle,turret_target)
@@ -460,7 +503,7 @@ while running:
         draw_bullet(b[0],b[1],b[2],(1,0,0))
     draw_crosshair()
     draw_text(10,20,f"Enemies: {total_enemies}",color=(0,1,0))
-    draw_text(10,HEIGHT-30,f"Life: {player_life}%",color=(0,1,0))
+    draw_text(10,HEIGHT-10,f"Life: {player_life}%",color=(0,1,0))
     if game_over:
         draw_text(WIDTH//2-70, HEIGHT//2-20, "GAME OVER", color=(1,0,0))
         if time.time()-game_over_time>1:
