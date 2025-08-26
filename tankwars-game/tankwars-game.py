@@ -22,6 +22,7 @@ sound_move = pygame.mixer.Sound("sound-tank-movement.mp3")
 sound_turret = pygame.mixer.Sound("sound-tank-turret.mp3")
 sound_explosion = pygame.mixer.Sound("sound-tank-explosion.mp3")
 sound_alarm = pygame.mixer.Sound("sound-tank-alarm.mp3")
+sound_warning = pygame.mixer.Sound("sound-tank-warning.mp3")
 
 pygame.mixer.music.load("music-track01.mp3")
 pygame.mixer.music.set_volume(0.5)
@@ -125,7 +126,8 @@ def spawn_enemies(level):
                     'state':'rotating',
                     'move_timer':0,
                     'last_fire':0,
-                    'player_detected':False
+                    'player_detected':False,
+                    'warning_played':False
                 })
                 break
 
@@ -292,7 +294,13 @@ def move_enemies(dt):
     current_time = time.time()
     for e in enemies:
         distance_to_player = math.hypot(e['pos'][0]-player_pos[0], e['pos'][2]-player_pos[2])
+        previously_detected = e['player_detected']
         e['player_detected'] = distance_to_player <= 100
+
+        if e['player_detected'] and not previously_detected and not e['warning_played']:
+            sound_warning.play()
+            e['warning_played'] = True
+
         if e['player_detected']:
             e['state'] = 'hunting'
             target_dx = player_pos[0] - e['pos'][0]
