@@ -21,7 +21,6 @@ sound_reload = pygame.mixer.Sound("sound-tank-reload.mp3")
 sound_move = pygame.mixer.Sound("sound-tank-movement.mp3")
 sound_turret = pygame.mixer.Sound("sound-tank-turret.mp3")
 sound_explosion = pygame.mixer.Sound("sound-tank-explosion.mp3")
-sound_player_explode = pygame.mixer.Sound("sound-tank-player-explodes.mp3")
 sound_alarm = pygame.mixer.Sound("sound-tank-alarm.mp3")
 
 pygame.mixer.music.load("music-track01.mp3")
@@ -444,8 +443,6 @@ while running:
                     total_enemies-=1
                     sound_explosion.set_volume(0.5)
                     sound_explosion.play()
-                    sound_player_explode.set_volume(0.5)
-                    sound_player_explode.play()
                     keep=False
                     break
         if keep: new_bullets.append(b)
