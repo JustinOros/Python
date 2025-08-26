@@ -507,7 +507,7 @@ while running:
     for b in enemy_bullets:
         draw_bullet(b[0],b[1],b[2],(1,0,0))
     draw_crosshair()
-    draw_text(10,20,f"Enemies: {total_enemies}",color=(0,1,0))
+    draw_text(WIDTH-100, HEIGHT-10,f"Enemies: {total_enemies}",color=(0,1,0))
     draw_text(10,HEIGHT-10,f"Life: {player_life}%",color=(0,1,0))
     if game_over:
         draw_text(WIDTH//2-70, HEIGHT//2-20, "GAME OVER", color=(1,0,0))
