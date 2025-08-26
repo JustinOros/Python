@@ -24,6 +24,10 @@ sound_explosion = pygame.mixer.Sound("sound-tank-explosion.mp3")
 sound_player_explode = pygame.mixer.Sound("sound-tank-player-explodes.mp3")
 sound_alarm = pygame.mixer.Sound("sound-tank-alarm.mp3")
 
+pygame.mixer.music.load("music-track01.mp3")
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(-1)
+
 pygame.joystick.init()
 joysticks = []
 for i in range(pygame.joystick.get_count()):
@@ -460,6 +464,7 @@ while running:
                 if player_life<=0:
                     game_over=True
                     game_over_time=time.time()
+                    pygame.mixer.music.stop()
         if keep: new_enemy_bullets.append(b)
     enemy_bullets=new_enemy_bullets
 
