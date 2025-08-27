@@ -217,11 +217,78 @@ def draw_crosshair():
     glMatrixMode(GL_MODELVIEW)
     glEnable(GL_LIGHTING)
 
+def draw_cube(size=1.0):
+    s = size / 2.0
+    
+    glBegin(GL_QUADS)
+    glNormal3f(0, 0, 1)
+    glVertex3f(-s, -s, s)
+    glVertex3f(s, -s, s)
+    glVertex3f(s, s, s)
+    glVertex3f(-s, s, s)
+    
+    glNormal3f(0, 0, -1)
+    glVertex3f(-s, -s, -s)
+    glVertex3f(-s, s, -s)
+    glVertex3f(s, s, -s)
+    glVertex3f(s, -s, -s)
+    
+    glNormal3f(0, 1, 0)
+    glVertex3f(-s, s, -s)
+    glVertex3f(-s, s, s)
+    glVertex3f(s, s, s)
+    glVertex3f(s, s, -s)
+    
+    glNormal3f(0, -1, 0)
+    glVertex3f(-s, -s, -s)
+    glVertex3f(s, -s, -s)
+    glVertex3f(s, -s, s)
+    glVertex3f(-s, -s, s)
+    
+    glNormal3f(1, 0, 0)
+    glVertex3f(s, -s, -s)
+    glVertex3f(s, s, -s)
+    glVertex3f(s, s, s)
+    glVertex3f(s, -s, s)
+    
+    glNormal3f(-1, 0, 0)
+    glVertex3f(-s, -s, -s)
+    glVertex3f(-s, -s, s)
+    glVertex3f(-s, s, s)
+    glVertex3f(-s, s, -s)
+    glEnd()
+
 def draw_bullet(x,y,z,color):
     glColor3f(*color)
     glPushMatrix()
     glTranslatef(x,y,z)
-    glutSolidSphere(0.2,8,8)
+    
+    radius = 0.2
+    stacks = 8
+    slices = 8
+    
+    for i in range(stacks):
+        lat0 = math.pi * (-0.5 + float(i) / stacks)
+        z0 = radius * math.sin(lat0)
+        zr0 = radius * math.cos(lat0)
+        
+        lat1 = math.pi * (-0.5 + float(i + 1) / stacks)
+        z1 = radius * math.sin(lat1)
+        zr1 = radius * math.cos(lat1)
+        
+        glBegin(GL_QUAD_STRIP)
+        for j in range(slices + 1):
+            lng = 2 * math.pi * float(j) / slices
+            x_coord = math.cos(lng)
+            y_coord = math.sin(lng)
+            
+            glNormal3f(x_coord * zr0, y_coord * zr0, z0)
+            glVertex3f(x_coord * zr0, y_coord * zr0, z0)
+            
+            glNormal3f(x_coord * zr1, y_coord * zr1, z1)
+            glVertex3f(x_coord * zr1, y_coord * zr1, z1)
+        glEnd()
+    
     glPopMatrix()
 
 def draw_player_tank(x, z, direction=0, turret_target=None):
@@ -232,7 +299,7 @@ def draw_player_tank(x, z, direction=0, turret_target=None):
     if NPY_AVAILABLE and tank_display_list:
         glCallList(tank_display_list)
     else:
-        glutSolidCube(2)
+        draw_cube(2)
     if turret_target:
         dx = turret_target[0]-x
         dz = turret_target[2]-z
@@ -247,7 +314,7 @@ def draw_player_tank(x, z, direction=0, turret_target=None):
         glColor3f(0.8,0.8,0)
         if not NPY_AVAILABLE:
             glScalef(0.2,0.2,2)
-            glutSolidCube(1)
+            draw_cube(1)
         glPopMatrix()
     glPopMatrix()
 
@@ -267,7 +334,7 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
     if NPY_AVAILABLE and tank_display_list:
         glCallList(tank_display_list)
     else:
-        glutSolidCube(2)
+        draw_cube(2)
     if turret_target:
         dx = turret_target[0]-x
         dz = turret_target[2]-z
@@ -278,7 +345,7 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
         glColor4f(1,1,0,alpha)
         if not NPY_AVAILABLE:
             glScalef(0.2,0.2,2)
-            glutSolidCube(1)
+            draw_cube(1)
         glPopMatrix()
     glPopMatrix()
     glDisable(GL_BLEND)
