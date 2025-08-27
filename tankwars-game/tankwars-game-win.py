@@ -193,8 +193,31 @@ def draw_text(x,y,text,color=(1,1,1),size=18):
     glMatrixMode(GL_MODELVIEW)
     glEnable(GL_LIGHTING)
 
+def draw_crosshair():
+    glDisable(GL_LIGHTING)
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    gluOrtho2D(0, WIDTH, 0, HEIGHT)
+    glMatrixMode(GL_MODELVIEW)
+    glPushMatrix()
+    glLoadIdentity()
+    glColor3f(1,1,1)
+    glBegin(GL_LINES)
+    cx = WIDTH/2 + crosshair_offset
+    cy = HEIGHT/2
+    glVertex2f(cx-10, cy)
+    glVertex2f(cx+10, cy)
+    glVertex2f(cx, cy-10)
+    glVertex2f(cx, cy+10)
+    glEnd()
+    glPopMatrix()
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+    glEnable(GL_LIGHTING)
+
 def draw_cube(size=1.0):
-    """Custom cube implementation to avoid Windows GLUT issues"""
     s = size / 2.0
     
     glBegin(GL_QUADS)
@@ -234,28 +257,6 @@ def draw_cube(size=1.0):
     glVertex3f(-s, s, s)
     glVertex3f(-s, s, -s)
     glEnd()
-    glDisable(GL_LIGHTING)
-    glMatrixMode(GL_PROJECTION)
-    glPushMatrix()
-    glLoadIdentity()
-    gluOrtho2D(0, WIDTH, 0, HEIGHT)
-    glMatrixMode(GL_MODELVIEW)
-    glPushMatrix()
-    glLoadIdentity()
-    glColor3f(1,1,1)
-    glBegin(GL_LINES)
-    cx = WIDTH/2 + crosshair_offset
-    cy = HEIGHT/2
-    glVertex2f(cx-10, cy)
-    glVertex2f(cx+10, cy)
-    glVertex2f(cx, cy-10)
-    glVertex2f(cx, cy+10)
-    glEnd()
-    glPopMatrix()
-    glMatrixMode(GL_PROJECTION)
-    glPopMatrix()
-    glMatrixMode(GL_MODELVIEW)
-    glEnable(GL_LIGHTING)
 
 def draw_bullet(x,y,z,color):
     glColor3f(*color)
