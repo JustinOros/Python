@@ -11,6 +11,7 @@ from OpenGL.GLU import *
 import random, math, sys, os
 from OpenGL.GLUT import glutInit, glutSolidSphere, glutSolidCube, glutBitmapCharacter, GLUT_BITMAP_HELVETICA_18
 import time
+import numpy as np
 
 pygame.init()
 pygame.mixer.init()
@@ -73,33 +74,37 @@ game_over = False
 game_over_time = 0
 alarm_playing = False
 
-OBJ_AVAILABLE = False
-tank_model = None
+NPY_AVAILABLE = False
+tank_vertices = None
 tank_display_list = None
 TANK_SCALE = 0.003
 
-if os.path.isfile("object-tank.obj"):
+if os.path.isfile("object-tank.npy"):
     try:
-        import pywavefront
-        tank_model = pywavefront.Wavefront("object-tank.obj", create_materials=True, collect_faces=True, parse=True)
-        OBJ_AVAILABLE = True
+        tank_data = np.load("object-tank.npy", allow_pickle=True).item()
+        NPY_AVAILABLE = True
+        
         tank_display_list = glGenLists(1)
         glNewList(tank_display_list, GL_COMPILE)
-        for name, mesh in tank_model.meshes.items():
-            for material in mesh.materials:
-                if hasattr(material,'texture') and material.texture is not None:
-                    glBindTexture(GL_TEXTURE_2D, material.texture.id)
-                else:
-                    glBindTexture(GL_TEXTURE_2D,0)
-                glBegin(GL_TRIANGLES)
-                for face in mesh.faces:
-                    for vertex_i in face:
-                        vertex = tank_model.vertices[vertex_i]
-                        glVertex3f(vertex[0]*TANK_SCALE, vertex[1]*TANK_SCALE, vertex[2]*TANK_SCALE)
-                glEnd()
+        glBegin(GL_TRIANGLES)
+        for face in tank_data['faces']:
+            for vertex_idx in face:
+                v = tank_data['vertices'][vertex_idx]
+                glVertex3f(v[0]*TANK_SCALE, v[1]*TANK_SCALE, v[2]*TANK_SCALE)
+        glEnd()
         glEndList()
-    except:
-        OBJ_AVAILABLE = False
+        
+        print(f"Tank model loaded successfully!")
+        print(f"Vertices: {len(tank_data['vertices'])}")
+        print(f"Faces: {len(tank_data['faces'])}")
+        
+    except Exception as e:
+        print(f"Error loading tank model: {e}")
+        import traceback
+        traceback.print_exc()
+        NPY_AVAILABLE = False
+else:
+    print("object-tank.npy file not found!")
 
 def spawn_enemies(level):
     global total_enemies
@@ -224,7 +229,7 @@ def draw_player_tank(x, z, direction=0, turret_target=None):
     glTranslatef(x, 0, z)
     glRotatef(direction, 0, 1, 0)
     glColor3f(0,1,1)
-    if OBJ_AVAILABLE and tank_display_list:
+    if NPY_AVAILABLE and tank_display_list:
         glCallList(tank_display_list)
     else:
         glutSolidCube(2)
@@ -240,7 +245,7 @@ def draw_player_tank(x, z, direction=0, turret_target=None):
         glTranslatef(0, 1, 1.5)
         glRotatef(-turret_pitch, 1, 0, 0)
         glColor3f(0.8,0.8,0)
-        if not OBJ_AVAILABLE:
+        if not NPY_AVAILABLE:
             glScalef(0.2,0.2,2)
             glutSolidCube(1)
         glPopMatrix()
@@ -259,7 +264,7 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
     glPushMatrix()
     glTranslatef(x, 0, z)
     glRotatef(body_direction + 90, 0, 1, 0)
-    if OBJ_AVAILABLE and tank_display_list:
+    if NPY_AVAILABLE and tank_display_list:
         glCallList(tank_display_list)
     else:
         glutSolidCube(2)
@@ -271,7 +276,7 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
         glRotatef(turret_angle - (body_direction + 90), 0,1,0)
         glTranslatef(0,1,1.5)
         glColor4f(1,1,0,alpha)
-        if not OBJ_AVAILABLE:
+        if not NPY_AVAILABLE:
             glScalef(0.2,0.2,2)
             glutSolidCube(1)
         glPopMatrix()
@@ -577,4 +582,3 @@ while running:
     pygame.display.flip()
 
 pygame.quit()
-

@@ -1,5 +1,4 @@
 pygame
 PyOpenGL
 PyOpenGL_accelerate
-pywavefront
 numpy
