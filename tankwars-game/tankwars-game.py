@@ -291,34 +291,32 @@ def draw_bullet(x,y,z,color):
     
     glPopMatrix()
 
-def draw_player_tank(x, z, direction=0, turret_target=None):
+def draw_player_tank(x, z, direction=0, turret_angle=0, turret_pitch=0):
     glPushMatrix()
     glTranslatef(x, 0, z)
     glRotatef(direction, 0, 1, 0)
     glColor3f(0,1,1)
     if NPY_AVAILABLE and tank_display_list:
+        glPushMatrix()
+        glRotatef(-90, 0, 1, 0)  
+        glRotatef(turret_angle - direction, 0, 1, 0)  
+        glRotatef(-turret_pitch, 1, 0, 0)  
         glCallList(tank_display_list)
+        glPopMatrix()
     else:
         draw_cube(2)
-    if turret_target:
-        dx = turret_target[0]-x
-        dz = turret_target[2]-z
-        turret_yaw = math.degrees(math.atan2(dx,-dz))
-        dy = turret_target[1] - 1
-        horizontal_dist = math.sqrt(dx*dx + dz*dz)
-        turret_pitch = math.degrees(math.atan2(dy, horizontal_dist)) if horizontal_dist>0 else 0
         glPushMatrix()
-        glRotatef(turret_yaw - direction, 0, 1, 0)
-        glTranslatef(0, 1, 1.5)
-        glRotatef(-turret_pitch, 1, 0, 0)
+        glTranslatef(0, 1, 0)  
+        glRotatef(turret_angle - direction, 0, 1, 0)  
+        glRotatef(-turret_pitch, 1, 0, 0)  
+        glTranslatef(0, 0, 1.5)  
         glColor3f(0.8,0.8,0)
-        if not NPY_AVAILABLE:
-            glScalef(0.2,0.2,2)
-            draw_cube(1)
+        glScalef(0.2,0.2,2)
+        draw_cube(1)
         glPopMatrix()
     glPopMatrix()
 
-def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
+def draw_enemy_tank(x, z, body_direction=0, turret_angle=0):
     distance = math.hypot(x - player_pos[0], z - player_pos[2])
     if distance >= 100:
         return
@@ -330,22 +328,22 @@ def draw_enemy_tank(x, z, body_direction=0, turret_target=None):
     glColor4f(1,0,0,alpha)
     glPushMatrix()
     glTranslatef(x, 0, z)
-    glRotatef(body_direction + 90, 0, 1, 0)
+    glRotatef(body_direction, 0, 1, 0)
     if NPY_AVAILABLE and tank_display_list:
+        glPushMatrix()
+        glRotatef(-90, 0, 1, 0)  
+        glRotatef(turret_angle - body_direction, 0, 1, 0)  
         glCallList(tank_display_list)
+        glPopMatrix()
     else:
         draw_cube(2)
-    if turret_target:
-        dx = turret_target[0]-x
-        dz = turret_target[2]-z
-        turret_angle = math.degrees(math.atan2(dx,-dz))
         glPushMatrix()
-        glRotatef(turret_angle - (body_direction + 90), 0,1,0)
-        glTranslatef(0,1,1.5)
+        glTranslatef(0, 1, 0)
+        glRotatef(turret_angle - body_direction, 0, 1, 0)
+        glTranslatef(0, 0, 1.5)
         glColor4f(1,1,0,alpha)
-        if not NPY_AVAILABLE:
-            glScalef(0.2,0.2,2)
-            draw_cube(1)
+        glScalef(0.2,0.2,2)
+        draw_cube(1)
         glPopMatrix()
     glPopMatrix()
     glDisable(GL_BLEND)
@@ -377,7 +375,7 @@ def move_enemies(dt):
             e['state'] = 'hunting'
             target_dx = player_pos[0] - e['pos'][0]
             target_dz = player_pos[2] - e['pos'][2]
-            e['target_angle'] = math.degrees(math.atan2(target_dx, -target_dz))
+            e['target_angle'] = math.degrees(math.atan2(target_dx, target_dz))
         if e['state']=='rotating':
             angle_diff = (e['target_angle'] - e['angle'] + 540)%360 - 180
             max_rot = 120*dt
@@ -393,7 +391,7 @@ def move_enemies(dt):
                 e['angle']%=360
         elif e['state']=='moving':
             dx = math.sin(math.radians(e['angle']))
-            dz = -math.cos(math.radians(e['angle']))
+            dz = math.cos(math.radians(e['angle']))  
             new_pos = [e['pos'][0]+dx*enemy_speed*dt,0,e['pos'][2]+dz*enemy_speed*dt]
             if not check_tank_collision(new_pos,ignore_enemy=e):
                 e['pos'][0]=new_pos[0]
@@ -411,7 +409,7 @@ def move_enemies(dt):
         elif e['state']=='hunting':
             target_dx = player_pos[0]-e['pos'][0]
             target_dz = player_pos[2]-e['pos'][2]
-            target_angle = math.degrees(math.atan2(target_dx, -target_dz))
+            target_angle = math.degrees(math.atan2(target_dx, target_dz))
             angle_diff = (target_angle - e['angle'] + 540)%360 - 180
             max_rot = 90*dt
             if abs(angle_diff)<max_rot:
@@ -421,7 +419,7 @@ def move_enemies(dt):
                 e['angle']%=360
             if abs(angle_diff)<45:
                 dx = math.sin(math.radians(e['angle']))
-                dz = -math.cos(math.radians(e['angle']))
+                dz = math.cos(math.radians(e['angle']))  
                 new_pos = [e['pos'][0]+dx*enemy_speed*dt,0,e['pos'][2]+dz*enemy_speed*dt]
                 if not check_tank_collision(new_pos,ignore_enemy=e):
                     e['pos'][0]=new_pos[0]
@@ -431,7 +429,7 @@ def move_enemies(dt):
                     e['last_fire']=current_time
                     bx,by,bz = e['pos'][0],1,e['pos'][2]
                     dx = math.sin(math.radians(e['angle']))
-                    dz = -math.cos(math.radians(e['angle']))
+                    dz = math.cos(math.radians(e['angle']))
                     dy=0
                     enemy_bullets.append([bx,by,bz,dx,dy,dz,current_time])
                     sound_cannon.play()
@@ -571,14 +569,20 @@ while running:
     gluLookAt(eye_x,eye_y,eye_z,center_x,center_y,center_z,0,1,0)
     glLightfv(GL_LIGHT0, GL_POSITION, (eye_x,eye_y,eye_z,1))
 
-    turret_target=[center_x,center_y,center_z]
+    turret_angle = player_angle
+    turret_pitch = pitch
 
     draw_sky()
     draw_grid()
     if player_tank_visible:
-        draw_player_tank(player_pos[0],player_pos[2],player_angle,turret_target)
+        draw_player_tank(player_pos[0], player_pos[2], player_angle, turret_angle, turret_pitch)
+    
     for e in enemies:
-        draw_enemy_tank(e['pos'][0], e['pos'][2], body_direction=e['angle'], turret_target=player_pos)
+        dx = player_pos[0] - e['pos'][0]
+        dz = player_pos[2] - e['pos'][2]
+        enemy_turret_angle = math.degrees(math.atan2(dx, dz))
+        draw_enemy_tank(e['pos'][0], e['pos'][2], body_direction=e['angle'], turret_angle=enemy_turret_angle)
+    
     for b in bullets:
         draw_bullet(b[0],b[1],b[2],(0,1,1))
     for b in enemy_bullets:
