@@ -1,0 +1,93 @@
+<!-- Description: Pokémon GO Level Calculator -->
+<!-- Author: Justin Oros -->
+<!-- Source: https://github.com/JustinOros -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon GO Level Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.05) 1px, transparent 0);
+      background-size: 20px 20px;
+      opacity: 0.5;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-slate-200 text-center">
+    <h1 class="text-2xl md:text-3xl font-bold text-slate-900 mb-4">Pokémon GO Level Calculator</h1>
+    <p class="text-slate-500 mb-6">Enter your total XP to see your level</p>
+    
+    <input type="text" id="xp-input" placeholder="e.g., 123,456,789" 
+      class="w-full px-4 py-3 mb-4 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-center text-lg">
+
+    <button id="calculate-btn" 
+      class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105">
+      Calculate
+    </button>
+
+    <div id="result" class="mt-6 text-center text-slate-800 text-lg font-semibold hidden"></div>
+  </div>
+
+  <script>
+    // XP thresholds for levels 1–80
+    const xpThresholds = [
+      0, 1000, 3000, 6000, 10000, 15000, 21000, 28000, 36000, 45000,          // 1–10
+      55000, 65000, 75000, 85000, 100000, 120000, 140000, 160000, 185000, 210000,  // 11–20
+      260000, 335000, 435000, 560000, 710000, 900000, 1100000, 1350000, 1650000, 2000000,  // 21–30
+      2500000, 3000000, 3750000, 4750000, 6000000, 7500000, 9500000, 12000000, 15000000, 20000000,  // 31–40
+      26000000, 33500000, 42500000, 43500000, 66500000, 82000000, 100000000, 121000000, 146000000, 176000000,  // 41–50
+      206000000, 236000000, 266000000, 296000000, 326000000, 356000000, 386000000, 416000000, 446000000, 476000000,  // 51–60
+      506000000, 536000000, 566000000, 596000000, 626000000, 656000000, 686000000, 716000000, 746000000, 776000000,  // 61–70
+      806000000, 836000000, 866000000, 896000000, 926000000, 956000000, 986000000, 1016000000, 1046000000, 1076000000,  // 71–80
+    ];
+
+    document.getElementById('calculate-btn').addEventListener('click', () => {
+      let xp = document.getElementById('xp-input').value.replace(/,/g,'').trim();
+      if (!xp || isNaN(xp)) {
+        alert('Please enter a valid number for XP.');
+        return;
+      }
+      xp = parseInt(xp, 10);
+
+      let level = 1;
+      for (let i = 0; i < xpThresholds.length; i++) {
+        if (xp >= xpThresholds[i]) {
+          level = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      let resultDiv = document.getElementById('result');
+      let output = `Current Level: ${level}`;
+
+      if (level < 80) {
+        let xpToNext = xpThresholds[level] - xp;
+        let xpTo80 = xpThresholds[79] - xp;
+        output += `<br>XP to next level: ${xpToNext.toLocaleString()}`;
+        output += `<br>XP to Level 80: ${xpTo80.toLocaleString()}`;
+      }
+
+      resultDiv.innerHTML = output;
+      resultDiv.classList.remove('hidden');
+    });
+
+    document.getElementById('xp-input').addEventListener('input', (e)=>{
+      e.target.value = e.target.value.replace(/[^0-9,]/g,'');
+    });
+  </script>
+
+</body>
+</html>
