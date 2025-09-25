@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Description: tankwars - A Pygame written in Python.
-# Usage: python3 tankwars-game.py
+# Usage: python3 game-tankwars.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
