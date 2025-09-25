@@ -74,15 +74,12 @@ game_over = False
 game_over_time = 0
 alarm_playing = False
 
-NPY_AVAILABLE = False
-tank_vertices = None
 tank_display_list = None
 TANK_SCALE = 0.003
 
 if os.path.isfile("object-tank.npy"):
     try:
         tank_data = np.load("object-tank.npy", allow_pickle=True).item()
-        NPY_AVAILABLE = True
         
         tank_display_list = glGenLists(1)
         glNewList(tank_display_list, GL_COMPILE)
@@ -102,9 +99,11 @@ if os.path.isfile("object-tank.npy"):
         print(f"Error loading tank model: {e}")
         import traceback
         traceback.print_exc()
-        NPY_AVAILABLE = False
+        print("ERROR: object-tank.npy is required for this game!")
+        sys.exit(1)
 else:
-    print("object-tank.npy file not found!")
+    print("ERROR: object-tank.npy file not found! This file is required.")
+    sys.exit(1)
 
 def spawn_enemies(level):
     global total_enemies
@@ -217,47 +216,6 @@ def draw_crosshair():
     glMatrixMode(GL_MODELVIEW)
     glEnable(GL_LIGHTING)
 
-def draw_cube(size=1.0):
-    s = size / 2.0
-    
-    glBegin(GL_QUADS)
-    glNormal3f(0, 0, 1)
-    glVertex3f(-s, -s, s)
-    glVertex3f(s, -s, s)
-    glVertex3f(s, s, s)
-    glVertex3f(-s, s, s)
-    
-    glNormal3f(0, 0, -1)
-    glVertex3f(-s, -s, -s)
-    glVertex3f(-s, s, -s)
-    glVertex3f(s, s, -s)
-    glVertex3f(s, -s, -s)
-    
-    glNormal3f(0, 1, 0)
-    glVertex3f(-s, s, -s)
-    glVertex3f(-s, s, s)
-    glVertex3f(s, s, s)
-    glVertex3f(s, s, -s)
-    
-    glNormal3f(0, -1, 0)
-    glVertex3f(-s, -s, -s)
-    glVertex3f(s, -s, -s)
-    glVertex3f(s, -s, s)
-    glVertex3f(-s, -s, s)
-    
-    glNormal3f(1, 0, 0)
-    glVertex3f(s, -s, -s)
-    glVertex3f(s, s, -s)
-    glVertex3f(s, s, s)
-    glVertex3f(s, -s, s)
-    
-    glNormal3f(-1, 0, 0)
-    glVertex3f(-s, -s, -s)
-    glVertex3f(-s, -s, s)
-    glVertex3f(-s, s, s)
-    glVertex3f(-s, s, -s)
-    glEnd()
-
 def draw_bullet(x,y,z,color):
     glColor3f(*color)
     glPushMatrix()
@@ -296,24 +254,12 @@ def draw_player_tank(x, z, direction=0, turret_angle=0, turret_pitch=0):
     glTranslatef(x, 0, z)
     glRotatef(direction, 0, 1, 0)
     glColor3f(0,1,1)
-    if NPY_AVAILABLE and tank_display_list:
-        glPushMatrix()
-        glRotatef(-90, 0, 1, 0)  
-        glRotatef(turret_angle - direction, 0, 1, 0)  
-        glRotatef(-turret_pitch, 1, 0, 0)  
-        glCallList(tank_display_list)
-        glPopMatrix()
-    else:
-        draw_cube(2)
-        glPushMatrix()
-        glTranslatef(0, 1, 0)  
-        glRotatef(turret_angle - direction, 0, 1, 0)  
-        glRotatef(-turret_pitch, 1, 0, 0)  
-        glTranslatef(0, 0, 1.5)  
-        glColor3f(0.8,0.8,0)
-        glScalef(0.2,0.2,2)
-        draw_cube(1)
-        glPopMatrix()
+    glPushMatrix()
+    glRotatef(-90, 0, 1, 0)  
+    glRotatef(turret_angle - direction, 0, 1, 0)  
+    glRotatef(-turret_pitch, 1, 0, 0)  
+    glCallList(tank_display_list)
+    glPopMatrix()
     glPopMatrix()
 
 def draw_enemy_tank(x, z, body_direction=0, turret_angle=0):
@@ -329,22 +275,11 @@ def draw_enemy_tank(x, z, body_direction=0, turret_angle=0):
     glPushMatrix()
     glTranslatef(x, 0, z)
     glRotatef(body_direction, 0, 1, 0)
-    if NPY_AVAILABLE and tank_display_list:
-        glPushMatrix()
-        glRotatef(-90, 0, 1, 0)  
-        glRotatef(turret_angle - body_direction, 0, 1, 0)  
-        glCallList(tank_display_list)
-        glPopMatrix()
-    else:
-        draw_cube(2)
-        glPushMatrix()
-        glTranslatef(0, 1, 0)
-        glRotatef(turret_angle - body_direction, 0, 1, 0)
-        glTranslatef(0, 0, 1.5)
-        glColor4f(1,1,0,alpha)
-        glScalef(0.2,0.2,2)
-        draw_cube(1)
-        glPopMatrix()
+    glPushMatrix()
+    glRotatef(-90, 0, 1, 0)  
+    glRotatef(turret_angle - body_direction, 0, 1, 0)  
+    glCallList(tank_display_list)
+    glPopMatrix()
     glPopMatrix()
     glDisable(GL_BLEND)
 
