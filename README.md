@@ -117,10 +117,10 @@ python3 maguro-game.py
 - Movement: `A` (Left), `D` (Right) (Keyboard) or Joy-pad (Controller)  
 - Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
 
-### `tankwars-game.py`  
+### `game-tankwars.py`  
 **Description:** Red vs Blue tanks game.  
 ```bash
-python3 tankwars-game.py
+python3 game-tankwars.py
 ```
 
 **Controls:**  
