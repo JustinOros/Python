@@ -44,8 +44,8 @@ except pygame.error as e:
 
 disc_x = SCREEN_WIDTH // 2
 disc_y = SCREEN_HEIGHT // 2
-disc_speed_x = 5
-disc_speed_y = 5
+disc_speed_x = 7
+disc_speed_y = 7
 disc_angle = 0
 disc_rotation_speed = -2
 base_speed = 5
