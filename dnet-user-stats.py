@@ -23,13 +23,14 @@ validProjects = {
     'OGR-28': 28,
 }
 
+# Normalize valid project names for case-insensitive lookup
+normalizedProjects = {k.lower(): v for k, v in validProjects.items()}
+
 # Parse command-line arguments
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Fetch Distributed.net stats for user and project.')
     parser.add_argument('-u', '--user', type=str, required=True, help='Username of the participant.')
-    parser.add_argument('-p', '--project', type=str, required=True, choices=validProjects.keys())
-    args = parser.parse_args()
-
+    parser.add_argument('-p', '--project', type=str, required=True, help='Project name (case-insensitive).')
     return parser.parse_args()
 
 # Main execution function
@@ -39,10 +40,18 @@ def main():
 
     # Retrieve user and project from parsed arguments
     user = args.user
-    project = args.project
+    project_input = args.project.strip().lower()
+
+    # Validate project name (case-insensitive)
+    if project_input not in normalizedProjects:
+        print(f"\nError: Invalid project '{args.project}'. Valid options are:")
+        for p in validProjects.keys():
+            print(f"  - {p}")
+        sys.exit(1)
 
     # Get project ID
-    projectId = validProjects[project]
+    projectId = normalizedProjects[project_input]
+    project = [k for k, v in validProjects.items() if v == projectId][0]  # Get the canonical name
 
     # Prepare data for the request
     data = {'project_id': projectId, 'st': user}
@@ -50,52 +59,47 @@ def main():
     # Perform a POST request to fetch the response
     response = requests.post(searchUrl, data=data)
 
-    if response:  # Proceed if we received a response
-        soup = BeautifulSoup(response.text, 'lxml')  # Load the response into BeautifulSoup
+    if response:
+        soup = BeautifulSoup(response.text, 'lxml')
 
-        summary = soup.find('td', class_='htitle').text.lstrip()  # Find summary
+        summary = soup.find('td', class_='htitle').text.lstrip()
 
         if 'Summary' in summary:
-            print(f'\nUser: {user}')  # Print user
-            summary = ' '.join(summary.split())  # Remove extra spaces from summary
-            summary = summary.split('/')  # Split summary and project into 2 strings
-            project_name = summary[0]  # Store the project name from the summary into a variable
-            print(f'Project: {project_name}')  # Print project
+            print(f'\nUser: {user}')
+            summary = ' '.join(summary.split())
+            summary = summary.split('/')
+            project_name = summary[0]
+            print(f'Project: {project_name}')
         else:
-            print(f'\nError: {user} not found for project {project}.\n')  # Notify if user not found
+            print(f'\nError: {user} not found for project {project}.\n')
             sys.exit()
 
         line = 0
-        for match in soup.find_all('td', align='right'):  # Search soup for table data
+        for match in soup.find_all('td', align='right'):
             line += 1
-            if line == 1:  # Get overall rank
+            if line == 1:
                 overallRank = match.text.lstrip()
                 if overallRank[0] != 'T' and overallRank[0] != '0':
-                    overallRank = overallRank.split('(')
-                    overallRank = overallRank[0]
-            if line == 2:  # Get current rank
+                    overallRank = overallRank.split('(')[0]
+            if line == 2:
                 currentRank = match.text.lstrip()
                 if currentRank[0] != '0':
-                    currentRank = currentRank.split('(')
-                    currentRank = currentRank[0]
-            if line == 3:  # Print current and overall rank
+                    currentRank = currentRank.split('(')[0]
+            if line == 3:
                 currentRank = f'{int(currentRank):,}'
                 print(f'Rank: {currentRank}')
                 overallRank = f'{int(overallRank):,}'
                 print(f'Overall: {overallRank}')
                 break
 
-        # Grab the date an update to rank was posted
         lastUpdate = soup.find('td', class_='lastupdate').text.split()
         lastUpdate = lastUpdate[8].lstrip()
 
-        # Format the date
         Year = lastUpdate[7:12]
         Month = lastUpdate[3:6]
         Day = lastUpdate[0:2]
 
         formattedDate = f'{Month} {Day}, {Year}'
-
         print(f'Updated: {formattedDate}\n')
 
     else:
