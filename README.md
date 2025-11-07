@@ -6,6 +6,12 @@ This repository contains a variety of Python scripts ranging from command-line u
 
 ## Utilities
 
+### `macminer.py`  
+**Description:** BTC Miner written in Python.
+```bash
+python3 macminer.py
+```
+
 ### `powerball.py`  
 **Description:** Command-line interface for powerball.com lottery information.  
 ```bash
