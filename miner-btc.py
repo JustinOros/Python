@@ -57,7 +57,7 @@ def load_or_create_config():
         print(f"  • threads: Number of CPU cores to use (default: {default_config['threads']} detected)")
         print("  • update_interval: Seconds between work updates (default: 5)")
         print(f"\n{'='*70}")
-        print("Edit macminer.json and run this script again.")
+        print("Edit miner-btc.json and run this script again.")
         print(f"{'='*70}\n")
         return None
     
@@ -455,13 +455,13 @@ def main():
         print("     rpcpassword=yourpassword")
         print("     rpcallowip=127.0.0.1")
         print("  5. Restart Bitcoin Core")
-        print("  6. Update macminer.json with your RPC credentials")
+        print("  6. Update miner-btc.json with your RPC credentials")
         print("  7. Run miner-btc.py again")
         print("\nOption 2 - Connect to remote Bitcoin Core:")
-        print("  1. Update 'solo_rpc_url' in macminer.json with remote host IP/hostname")
+        print("  1. Update 'solo_rpc_url' in miner-btc.json with remote host IP/hostname")
         print("     Example: \"http://192.168.1.100:8332\"")
         print("  2. Ensure remote Bitcoin Core has rpcallowip configured for your IP")
-        print("  3. Update RPC credentials in macminer.json")
+        print("  3. Update RPC credentials in miner-btc.json")
         print("  4. Run miner-btc.py again")
         print("\n" + "="*70)
         return
