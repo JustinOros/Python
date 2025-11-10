@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: macminer.py - Bitcoin Miner optimized for Apple Silicon 
-# Usage: python3 macminer.py
+# Usage: python3 miner-btc.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros 
 
@@ -14,7 +14,7 @@ from datetime import datetime
 from multiprocessing import Process, Queue, cpu_count
 from binascii import unhexlify, hexlify
 
-CONFIG_FILE = "macminer.json"
+CONFIG_FILE = "miner-btc.json"
 
 def get_default_config():
     """Generate default configuration with dynamic values"""
@@ -456,13 +456,13 @@ def main():
         print("     rpcallowip=127.0.0.1")
         print("  5. Restart Bitcoin Core")
         print("  6. Update macminer.json with your RPC credentials")
-        print("  7. Run macminer.py again")
+        print("  7. Run miner-btc.py again")
         print("\nOption 2 - Connect to remote Bitcoin Core:")
         print("  1. Update 'solo_rpc_url' in macminer.json with remote host IP/hostname")
         print("     Example: \"http://192.168.1.100:8332\"")
         print("  2. Ensure remote Bitcoin Core has rpcallowip configured for your IP")
         print("  3. Update RPC credentials in macminer.json")
-        print("  4. Run macminer.py again")
+        print("  4. Run miner-btc.py again")
         print("\n" + "="*70)
         return
     
