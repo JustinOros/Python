@@ -6,6 +6,12 @@ This repository contains a variety of Python scripts ranging from command-line u
 
 ## Utilities
 
+### `miner-kaspa.py`  
+**Description:** Kaspa Miner written in Python.
+```bash
+python3 miner-kaspa.py
+```
+
 ### `macminer.py`  
 **Description:** BTC Miner written in Python.
 ```bash
