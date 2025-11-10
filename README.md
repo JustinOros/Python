@@ -6,16 +6,22 @@ This repository contains a variety of Python scripts ranging from command-line u
 
 ## Utilities
 
+### `miner-monero.py`  
+**Description:** Monero (XMR) Miner written in Python.
+```bash
+python3 miner-monero.py
+```
+
 ### `miner-kaspa.py`  
-**Description:** Kaspa Miner written in Python.
+**Description:** Kaspa (KAS) Miner written in Python.
 ```bash
 python3 miner-kaspa.py
 ```
 
-### `macminer.py`  
-**Description:** BTC Miner written in Python.
+### `miner-btc.py`  
+**Description:** Bitcoin (BTC) Miner written in Python.
 ```bash
-python3 macminer.py
+python3 miner-btc.py
 ```
 
 ### `powerball.py`  
