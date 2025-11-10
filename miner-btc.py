@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Description: macminer.py - Bitcoin Miner optimized for Apple Silicon 
+# Description: Bitcoin Miner script using GPU and CPU. 
 # Usage: python3 miner-btc.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros 
