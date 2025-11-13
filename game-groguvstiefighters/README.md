@@ -37,4 +37,10 @@ Make sure Python and Pygame are installed:
 
 ```bash
 pip install pygame
+```
+
+Run the game:
+
+```bash
 python3 game-groguvstiefighters.py
+```
