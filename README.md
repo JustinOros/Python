@@ -119,6 +119,10 @@ python3 sushi-screensaver.py
 ```bash
 python3 game-groguvstiefighters.py
 ```
+**Controls:**  
+- Movement: `W`, `A`, `S`, `D` (Keyboard)
+- Fire: `Spacebar` (Keyboard), Primary-click (Mouse)
+- Exit: `Esc` (Keyboard) or `Q` (Keyboard)
 
 ### `circlewars-game.py`  
 **Description:** Red vs Blue circles game.  
