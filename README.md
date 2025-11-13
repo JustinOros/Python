@@ -114,6 +114,12 @@ python3 sushi-screensaver.py
 
 ## Games
 
+### `game-groguvstiefighters.py`  
+**Description:** Grogu vs TIE Fighters game.  
+```bash
+python3 game-groguvstiefighters.py
+```
+
 ### `circlewars-game.py`  
 **Description:** Red vs Blue circles game.  
 ```bash
