@@ -1,4 +1,4 @@
-# Grogu vs TIE Fighters
+<h1 align="center">Grogu vs TIE Fighters</h1>
 
 ![Gameplay Screenshot](screenshot.jpg)
 
@@ -28,13 +28,12 @@
 | Move Right                | `D`                       |
 | Shoot Laser               | `Space` / Left Mouse Click|
 | Quit / Exit Game          | `Esc` or `Q`              |
-| Restart After Game Over   | `R`                       |
 
 ---
 
 ## Installation & Running
 
-1. Make sure Python 3 and Pygame are installed:
+Make sure Python and Pygame are installed:
 
 ```bash
 pip install pygame
