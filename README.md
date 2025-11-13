@@ -114,6 +114,16 @@ python3 sushi-screensaver.py
 
 ## Games
 
+### `game-groguvstiefighters.py`  
+**Description:** Grogu vs TIE Fighters game.  
+```bash
+python3 game-groguvstiefighters.py
+```
+**Controls:**  
+- Movement: `W`, `A`, `S`, `D` (Keyboard)
+- Fire: `Spacebar` (Keyboard), Primary-click (Mouse)
+- Exit: `Esc` (Keyboard) or `Q` (Keyboard)
+
 ### `circlewars-game.py`  
 **Description:** Red vs Blue circles game.  
 ```bash
