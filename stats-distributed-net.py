@@ -7,7 +7,39 @@
 import requests
 from bs4 import BeautifulSoup
 import sys
+import json
+import os
 from datetime import datetime
+from pathlib import Path
+
+
+def get_history_file():
+    """Return path to history file in user's home directory."""
+    home = Path.home()
+    return home / ".stats_distributed_net_history.json"
+
+
+def load_last_search():
+    """Load the last search term from history file."""
+    history_file = get_history_file()
+    if history_file.exists():
+        try:
+            with open(history_file, 'r') as f:
+                data = json.load(f)
+                return data.get('last_search', '')
+        except Exception:
+            return ''
+    return ''
+
+
+def save_last_search(search_term):
+    """Save the search term to history file."""
+    history_file = get_history_file()
+    try:
+        with open(history_file, 'w') as f:
+            json.dump({'last_search': search_term}, f)
+    except Exception as e:
+        print(f"Warning: Could not save search history: {e}")
 
 
 def get_projects():
@@ -194,6 +226,22 @@ def parse_stats_page(soup, search_type):
     return result if result['name'] != 'Unknown' else None
 
 
+def get_input_with_default(prompt, default_value):
+    """Display a prompt with a default value that can be edited."""
+    if default_value:
+        prompt_text = f"{prompt} [{default_value}]: "
+    else:
+        prompt_text = f"{prompt}: "
+    
+    user_input = input(prompt_text).strip()
+    
+    # If user just presses Enter and there's a default, use it
+    if not user_input and default_value:
+        return default_value
+    
+    return user_input
+
+
 def main():
     print("=" * 60)
     print("Distributed.net Statistics Search Tool")
@@ -225,10 +273,16 @@ def main():
             break
         print("Invalid choice")
 
-    search_term = input("\nEnter search term: ").strip()
+    # Load last search and offer it as default
+    last_search = load_last_search()
+    search_term = get_input_with_default("\nEnter search term", last_search)
+    
     if not search_term:
         print("Search term cannot be empty.")
         return
+
+    # Save this search for next time
+    save_last_search(search_term)
 
     debug = '--debug' in sys.argv
 
@@ -264,3 +318,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nUnexpected error: {e}")
         sys.exit(1)
+
