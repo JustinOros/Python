@@ -6,6 +6,12 @@ This repository contains a variety of Python scripts ranging from command-line u
 
 ## Utilities
 
+### `stats-distributed-net.py`  
+**Description:** Search User or Team statistic data from stats.distributed.net.
+```bash
+python3 stats-distributed-net.py
+```
+
 ### `miner-monero.py`  
 **Description:** Monero (XMR) Miner written in Python.
 ```bash
