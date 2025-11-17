@@ -97,7 +97,7 @@ def get_projects():
         if pid not in KNOWN:
             print(f"⚠️ New project detected on stats.distributed.net: ID={pid}, Name='{name}'")
 
-    return dict(sorted(projects.items(), key=lambda x: x[0]))
+    return dict(sorted(projects.items(), key=lambda x: int(x[0])))
 
 
 def search_participant(project_id, search_term, debug=False):
@@ -318,4 +318,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\nUnexpected error: {e}")
         sys.exit(1)
-
