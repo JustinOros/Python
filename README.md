@@ -130,10 +130,10 @@ python3 game-groguvstiefighters.py
 - Fire: `Spacebar` (Keyboard), Primary-click (Mouse)
 - Exit: `Esc` (Keyboard) or `Q` (Keyboard)
 
-### `circlewars-game.py`  
+### `game-circlewars.py`  
 **Description:** Red vs Blue circles game.  
 ```bash
-python3 circlewars-game.py
+python3 game-circlewars.py
 ```
 
 **Controls:**  
@@ -141,10 +141,10 @@ python3 circlewars-game.py
 - Fire: `Spacebar` (Keyboard), Primary-click (Mouse), or `A` button (Controller)  
 - Pause/Exit: `Esc` (Keyboard) or `Start` (Controller), then `Q` (Keyboard) or `X` (Controller)
 
-### `maguro-game.py`  
+### `game-maguro.py`  
 **Description:** Maguro Cat eats sushi game.  
 ```bash
-python3 maguro-game.py
+python3 game-maguro.py
 ```
 
 **Controls:**  
