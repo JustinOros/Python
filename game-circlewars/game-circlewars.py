@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # Description: circlewars - A Pygame written in Python.
-# Usage: python3 circlewars-game.py
+# Usage: python3 game-circlewars.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
