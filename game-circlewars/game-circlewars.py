@@ -41,21 +41,21 @@ def load_sound(filename):
         return None
 
 # Load sounds
-GO_SOUND = load_sound("audio_go.wav")
-FIRE_SOUND = load_sound("audio_playerfire.wav")
-DIE_SOUND = load_sound("audio_playerdeath.wav")
-LEVEL_UP_SOUND = load_sound("audio_levelup.wav")
-ENEMY_DEATH_SOUND = load_sound("audio_enemydeath.wav")
-EXPLOSION_SOUND = load_sound("audio_playerdeath.wav")
+GO_SOUND = load_sound("audio-go.wav")
+FIRE_SOUND = load_sound("audio-playerfire.wav")
+DIE_SOUND = load_sound("audio-playerdeath.wav")
+LEVEL_UP_SOUND = load_sound("audio-levelup.wav")
+ENEMY_DEATH_SOUND = load_sound("audio-enemydeath.wav")
+EXPLOSION_SOUND = load_sound("audio-playerdeath.wav")
 
 # Load background music (pygame.mixer.music)
-if os.path.exists("audio_music.mp3"):
+if os.path.exists("audio-music.mp3"):
     try:
-        pygame.mixer.music.load("audio_music.mp3")
+        pygame.mixer.music.load("audio-music.mp3")
     except Exception as e:
         print(f"Error loading background music: {e}")
 else:
-    print("Warning: audio_music.mp3 not found. Background music disabled.")
+    print("Warning: audio-music.mp3 not found. Background music disabled.")
 
 # Set font for score
 font = pygame.font.SysFont(None, 30)
