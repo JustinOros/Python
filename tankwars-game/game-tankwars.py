@@ -55,6 +55,7 @@ glMatrixMode(GL_MODELVIEW)
 
 player_pos = [0,0,0]
 player_angle = 0
+camera_angle = 0
 pitch = 0
 crosshair_offset = 0
 level = 1
@@ -80,7 +81,6 @@ TANK_SCALE = 0.003
 if os.path.isfile("object-tank.npy"):
     try:
         tank_data = np.load("object-tank.npy", allow_pickle=True).item()
-        
         tank_display_list = glGenLists(1)
         glNewList(tank_display_list, GL_COMPILE)
         glBegin(GL_TRIANGLES)
@@ -90,19 +90,9 @@ if os.path.isfile("object-tank.npy"):
                 glVertex3f(v[0]*TANK_SCALE, v[1]*TANK_SCALE, v[2]*TANK_SCALE)
         glEnd()
         glEndList()
-        
-        print(f"Tank model loaded successfully!")
-        print(f"Vertices: {len(tank_data['vertices'])}")
-        print(f"Faces: {len(tank_data['faces'])}")
-        
-    except Exception as e:
-        print(f"Error loading tank model: {e}")
-        import traceback
-        traceback.print_exc()
-        print("ERROR: object-tank.npy is required for this game!")
+    except:
         sys.exit(1)
 else:
-    print("ERROR: object-tank.npy file not found! This file is required.")
     sys.exit(1)
 
 def spawn_enemies(level):
@@ -204,7 +194,7 @@ def draw_crosshair():
     glColor3f(1,1,1)
     glBegin(GL_LINES)
     cx = WIDTH/2 + crosshair_offset
-    cy = HEIGHT/2
+    cy = HEIGHT/2 - 50
     glVertex2f(cx-10, cy)
     glVertex2f(cx+10, cy)
     glVertex2f(cx, cy-10)
@@ -220,46 +210,34 @@ def draw_bullet(x,y,z,color):
     glColor3f(*color)
     glPushMatrix()
     glTranslatef(x,y,z)
-    
     radius = 0.2
     stacks = 8
     slices = 8
-    
     for i in range(stacks):
         lat0 = math.pi * (-0.5 + float(i) / stacks)
         z0 = radius * math.sin(lat0)
         zr0 = radius * math.cos(lat0)
-        
         lat1 = math.pi * (-0.5 + float(i + 1) / stacks)
         z1 = radius * math.sin(lat1)
         zr1 = radius * math.cos(lat1)
-        
         glBegin(GL_QUAD_STRIP)
         for j in range(slices + 1):
             lng = 2 * math.pi * float(j) / slices
             x_coord = math.cos(lng)
             y_coord = math.sin(lng)
-            
             glNormal3f(x_coord * zr0, y_coord * zr0, z0)
             glVertex3f(x_coord * zr0, y_coord * zr0, z0)
-            
             glNormal3f(x_coord * zr1, y_coord * zr1, z1)
             glVertex3f(x_coord * zr1, y_coord * zr1, z1)
         glEnd()
-    
     glPopMatrix()
 
 def draw_player_tank(x, z, direction=0, turret_angle=0, turret_pitch=0):
     glPushMatrix()
     glTranslatef(x, 0, z)
-    glRotatef(direction, 0, 1, 0)
+    glRotatef(turret_angle, 0, 1, 0)
     glColor3f(0,1,1)
-    glPushMatrix()
-    glRotatef(-90, 0, 1, 0)  
-    glRotatef(turret_angle - direction, 0, 1, 0)  
-    glRotatef(-turret_pitch, 1, 0, 0)  
     glCallList(tank_display_list)
-    glPopMatrix()
     glPopMatrix()
 
 def draw_enemy_tank(x, z, body_direction=0, turret_angle=0):
@@ -276,8 +254,8 @@ def draw_enemy_tank(x, z, body_direction=0, turret_angle=0):
     glTranslatef(x, 0, z)
     glRotatef(body_direction, 0, 1, 0)
     glPushMatrix()
-    glRotatef(-90, 0, 1, 0)  
-    glRotatef(turret_angle - body_direction, 0, 1, 0)  
+    glRotatef(-90, 0, 1, 0)
+    glRotatef(turret_angle - body_direction, 0, 1, 0)
     glCallList(tank_display_list)
     glPopMatrix()
     glPopMatrix()
@@ -301,11 +279,9 @@ def move_enemies(dt):
         distance_to_player = math.hypot(e['pos'][0]-player_pos[0], e['pos'][2]-player_pos[2])
         previously_detected = e['player_detected']
         e['player_detected'] = distance_to_player <= 100
-
         if e['player_detected'] and not previously_detected and not e['warning_played']:
             sound_warning.play()
             e['warning_played'] = True
-
         if e['player_detected']:
             e['state'] = 'hunting'
             target_dx = player_pos[0] - e['pos'][0]
@@ -326,7 +302,7 @@ def move_enemies(dt):
                 e['angle']%=360
         elif e['state']=='moving':
             dx = math.sin(math.radians(e['angle']))
-            dz = math.cos(math.radians(e['angle']))  
+            dz = math.cos(math.radians(e['angle']))
             new_pos = [e['pos'][0]+dx*enemy_speed*dt,0,e['pos'][2]+dz*enemy_speed*dt]
             if not check_tank_collision(new_pos,ignore_enemy=e):
                 e['pos'][0]=new_pos[0]
@@ -354,7 +330,7 @@ def move_enemies(dt):
                 e['angle']%=360
             if abs(angle_diff)<45:
                 dx = math.sin(math.radians(e['angle']))
-                dz = math.cos(math.radians(e['angle']))  
+                dz = math.cos(math.radians(e['angle']))
                 new_pos = [e['pos'][0]+dx*enemy_speed*dt,0,e['pos'][2]+dz*enemy_speed*dt]
                 if not check_tank_collision(new_pos,ignore_enemy=e):
                     e['pos'][0]=new_pos[0]
@@ -420,22 +396,32 @@ while running:
     current_time=time.time()
     if fire_pressed and (current_time - last_fire_time>=FIRE_COOLDOWN):
         last_fire_time=current_time
-        bx=player_pos[0]; by=1; bz=player_pos[2]
-        dx=math.sin(math.radians(player_angle))
-        dy=math.sin(math.radians(pitch))
-        dz=-math.cos(math.radians(player_angle))
+        rad_cam = math.radians(player_angle)
+        rad_pitch = math.radians(pitch)
+        forward_x = math.sin(rad_cam) * math.cos(rad_pitch)
+        forward_y = math.sin(rad_pitch)
+        forward_z = -math.cos(rad_cam) * math.cos(rad_pitch)
+        barrel_length = 3.0
+        barrel_base_height = 1.2
+        bx = player_pos[0] + forward_x * barrel_length
+        by = player_pos[1] + barrel_base_height + forward_y * barrel_length
+        bz = player_pos[2] + forward_z * barrel_length
+        dx = forward_x
+        dy = forward_y
+        dz = forward_z
         bullets.append([bx,by,bz,dx,dy,dz,current_time])
         sound_cannon.play()
         pygame.time.set_timer(pygame.USEREVENT+1,500)
 
     mx,my=pygame.mouse.get_rel()
-    player_angle+=mx*0.1
+    camera_angle+=mx*0.1
+    player_angle=camera_angle
     pitch-=my*0.1
     pitch=max(-10,min(10,pitch))
 
     for b in bullets:
         b[0]+=b[3]*60*dt
-        b[1]+=b[4]*30*dt - 9.8*dt*dt
+        b[1] += b[4] * 60 * dt
         b[2]+=b[5]*60*dt
 
     for b in enemy_bullets:
@@ -493,14 +479,25 @@ while running:
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
-    cam_height=4
-    rad_yaw=math.radians(player_angle)
+
+    cam_height=8
+    cam_distance=25
+
+    rad_cam=math.radians(camera_angle)
     rad_pitch=math.radians(pitch)
-    dx=math.sin(rad_yaw)*math.cos(rad_pitch)
+
+    eye_x=player_pos[0] - math.sin(rad_cam)*cam_distance
+    eye_y=cam_height
+    eye_z=player_pos[2] + math.cos(rad_cam)*cam_distance
+
+    dx=math.sin(rad_cam)*math.cos(rad_pitch)
     dy=math.sin(rad_pitch)
-    dz=-math.cos(rad_yaw)*math.cos(rad_pitch)
-    eye_x=player_pos[0]; eye_y=cam_height; eye_z=player_pos[2]
-    center_x=eye_x+dx+crosshair_offset*0.05; center_y=eye_y+dy; center_z=eye_z+dz
+    dz=-math.cos(rad_cam)*math.cos(rad_pitch)
+
+    center_x=player_pos[0] + dx*50
+    center_y=cam_height + dy*50
+    center_z=player_pos[2] + dz*50
+
     gluLookAt(eye_x,eye_y,eye_z,center_x,center_y,center_z,0,1,0)
     glLightfv(GL_LIGHT0, GL_POSITION, (eye_x,eye_y,eye_z,1))
 
@@ -510,14 +507,14 @@ while running:
     draw_sky()
     draw_grid()
     if player_tank_visible:
-        draw_player_tank(player_pos[0], player_pos[2], player_angle, turret_angle, turret_pitch)
-    
+        draw_player_tank(player_pos[0], player_pos[2], 0, -player_angle + 93, 0)
+
     for e in enemies:
         dx = player_pos[0] - e['pos'][0]
         dz = player_pos[2] - e['pos'][2]
         enemy_turret_angle = math.degrees(math.atan2(dx, dz))
         draw_enemy_tank(e['pos'][0], e['pos'][2], body_direction=e['angle'], turret_angle=enemy_turret_angle)
-    
+
     for b in bullets:
         draw_bullet(b[0],b[1],b[2],(0,1,1))
     for b in enemy_bullets:
