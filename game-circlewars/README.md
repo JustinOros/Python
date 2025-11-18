@@ -1,6 +1,6 @@
 # <h1 align="center">⚔️ CIRCLE WARS ⚔️</h1>
 
-![Circle Wars Screenshot](screenshot_circlewars.png)
+![Circle Wars Screenshot](screenshot-circlewars.png)
 
 **Circle Wars** is a fast-paced, neon-glowing arcade shooter where you control a glowing circle battling waves of relentless enemies. Dodge and weave the full-screen arena, blast enemies with shots and survive as long as possible while leveling up!
 
