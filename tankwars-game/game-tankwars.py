@@ -437,7 +437,7 @@ while running:
             keep=False
         else:
             for e in enemies[:]:
-                if abs(b[0]-e['pos'][0])<2 and abs(b[2]-e['pos'][2])<2:
+                if abs(b[0]-e['pos'][0])<2 and abs(b[2]-e['pos'][2])<2 and abs(b[1]-1)<2:
                     enemies.remove(e)
                     total_enemies-=1
                     sound_explosion.set_volume(0.5)
