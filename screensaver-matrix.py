@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: The Matrix Screensaver.
-# Usage: python3 matrix-screensaver.py
+# Usage: python3 screensaver-matrix.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
