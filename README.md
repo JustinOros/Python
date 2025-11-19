@@ -104,16 +104,16 @@ python3 ham-test-www.py
 
 ## Screensavers
 
-### `matrix-screensaver.py`  
+### `screensaver-matrix.py`  
 **Description:** The Matrix-themed screensaver.  
 ```bash
-python3 matrix-screensaver.py
+python3 screensaver-matrix.py
 ```
 
-### `sushi-screensaver.py`  
+### `screensaver-sushi.py`  
 **Description:** Sushi-themed screensaver.  
 ```bash
-python3 sushi-screensaver.py
+python3 screensaver-sushi.py
 ```
 
 ---
