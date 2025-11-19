@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Description: Sushi Screensaver.
-# Usage: python3 sushi-screensaver.py
+# Usage: python3 screensaver-sushi.py
 # Author: Justin Oros
 # Source: https://github.com/JustinOros
 
