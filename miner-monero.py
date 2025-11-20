@@ -11,22 +11,236 @@ import os
 import time
 import signal
 import platform
+import urllib.request
+import tarfile
+import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 class MoneroMiner:
     def __init__(self, config_file: str = "miner-monero.json"):
         self.config_file = config_file
-        self.config = self.load_config()
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+        self.config = None
         self.process: Optional[subprocess.Popen] = None
+        
+    def detect_os(self) -> str:
+        """Detect the operating system"""
+        system = platform.system()
+        if system == 'Darwin':
+            return 'macos'
+        elif system == 'Linux':
+            return 'linux'
+        elif system == 'Windows':
+            return 'windows'
+        else:
+            return 'unknown'
+    
+    def detect_cpu_arch(self) -> str:
+        """Detect CPU architecture"""
+        machine = platform.machine().lower()
+        if machine in ['arm64', 'aarch64']:
+            return 'arm64'
+        elif machine in ['x86_64', 'amd64', 'x64']:
+            return 'x64'
+        else:
+            return machine
+    
+    def get_latest_xmrig_version(self) -> Optional[str]:
+        """Fetch the latest XMRig version from GitHub"""
+        try:
+            url = "https://api.github.com/repos/xmrig/xmrig/releases/latest"
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'Mozilla/5.0')
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                return data['tag_name'].lstrip('v')
+        except Exception as e:
+            print(f"Error fetching latest version: {e}")
+            return None
+    
+    def check_xmrig_installed(self) -> bool:
+        """Check if xmrig is installed"""
+        # Check in script directory first
+        local_paths = [
+            os.path.join(self.script_dir, 'xmrig'),
+            os.path.join(self.script_dir, 'xmrig.exe'),
+        ]
+        
+        for path in local_paths:
+            if os.path.exists(path) and os.access(path, os.X_OK):
+                return True
+        
+        # Check in system PATH
+        try:
+            result = subprocess.run(['which', 'xmrig'], 
+                                  capture_output=True, 
+                                  text=True, 
+                                  timeout=5)
+            if result.returncode == 0:
+                return True
+        except:
+            pass
+        
+        return False
+    
+    def download_and_install_xmrig(self) -> bool:
+        """Download and install XMRig based on OS and architecture"""
+        os_type = self.detect_os()
+        arch = self.detect_cpu_arch()
+        
+        print(f"\nDetected OS: {os_type}")
+        print(f"Detected Architecture: {arch}")
+        
+        if os_type != 'macos':
+            print(f"\nAutomatic installation is currently only supported for macOS.")
+            print(f"Please install XMRig manually from: https://github.com/xmrig/xmrig/releases")
+            return False
+        
+        # Get latest version
+        print("\nFetching latest XMRig version from GitHub...")
+        version = self.get_latest_xmrig_version()
+        
+        if not version:
+            print("Could not determine latest version. Using default version 6.24.0")
+            version = "6.24.0"
+        
+        print(f"Latest version: {version}")
+        
+        # Determine filename based on architecture
+        if arch == 'arm64':
+            filename = f"xmrig-{version}-macos-arm64.tar.gz"
+        elif arch == 'x64':
+            filename = f"xmrig-{version}-macos-x64.tar.gz"
+        else:
+            print(f"Unsupported architecture: {arch}")
+            return False
+        
+        download_url = f"https://github.com/xmrig/xmrig/releases/download/v{version}/{filename}"
+        
+        print(f"\nReady to download: {filename}")
+        print(f"URL: {download_url}")
+        
+        # Prompt user
+        while True:
+            response = input("\nDownload and install XMRig? (Y/N): ").strip().upper()
+            if response in ['Y', 'N']:
+                break
+            print("Please enter Y or N")
+        
+        if response == 'N':
+            print("Installation cancelled.")
+            return False
+        
+        # Download
+        print(f"\nDownloading {filename}...")
+        local_filename = os.path.join(self.script_dir, filename)
+        
+        try:
+            urllib.request.urlretrieve(download_url, local_filename)
+            print("Download complete!")
+        except Exception as e:
+            print(f"Error downloading file: {e}")
+            return False
+        
+        # Extract
+        print("Extracting archive...")
+        try:
+            with tarfile.open(local_filename, 'r:gz') as tar:
+                # Find the xmrig binary in the archive
+                for member in tar.getmembers():
+                    if member.name.endswith('/xmrig') or member.name == 'xmrig':
+                        member.name = 'xmrig'
+                        tar.extract(member, self.script_dir)
+                        break
+            
+            xmrig_path = os.path.join(self.script_dir, 'xmrig')
+            
+            # Make executable
+            os.chmod(xmrig_path, 0o755)
+            print(f"XMRig installed successfully at: {xmrig_path}")
+            
+            # Clean up
+            os.remove(local_filename)
+            print("Cleaned up temporary files.")
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error extracting archive: {e}")
+            return False
+    
+    def prompt_wallet_address(self) -> str:
+        """Prompt user for wallet address"""
+        default_wallet = "85NGrygcwq36kjLaNKZevT53H4EeHRQYeje5Y3gq3GYkKsEpwKpGjqd1tGxAVEjDfxEha6SYtyNYPbmPXduYqy47Q6JwbuW"
+        
+        print("\n" + "="*60)
+        print("Monero Wallet Configuration")
+        print("="*60)
+        print(f"\nDefault wallet address:")
+        print(f"{default_wallet}")
+        print("\nPress ENTER to use the default wallet, or paste your own:")
+        
+        wallet = input("Wallet Address: ").strip()
+        
+        if not wallet:
+            wallet = default_wallet
+            print("Using default wallet address.")
+        else:
+            print("Using your wallet address.")
+        
+        return wallet
+    
+    def setup_initial_config(self):
+        """Setup initial configuration with user input"""
+        os_type = self.detect_os()
+        arch = self.detect_cpu_arch()
+        is_mac = os_type == 'macos'
+        is_arm = arch == 'arm64'
+        
+        # Get wallet address from user
+        wallet_address = self.prompt_wallet_address()
+        
+        # Determine xmrig path
+        xmrig_path = os.path.join(self.script_dir, 'xmrig')
+        if is_mac:
+            miner_executable = "./xmrig"
+        else:
+            miner_executable = "xmrig"
+        
+        config = {
+            "wallet_address": wallet_address,
+            "mining_mode": "pool",
+            "miner_executable": miner_executable,
+            "pool_address": "pool.supportxmr.com:443",
+            "pool_password": "x",
+            "worker_name": f"m2-miner" if is_arm else "worker1",
+            "node_address": "127.0.0.1:18081",
+            "threads": 0,
+            "cpu_max_usage": 75,
+            "huge_pages": True if not is_mac else False,
+            "randomx_mode": "auto",
+            "tls_enabled": True,
+            "nicehash": False,
+            "extra_args": [],
+            "log_file": "monero-miner.log",
+            "api_port": 0,
+            "donate_level": 1
+        }
+        
+        with open(self.config_file, 'w') as f:
+            json.dump(config, f, indent=4)
+        
+        print(f"\nConfiguration saved to: {self.config_file}")
+        return config
         
     def load_config(self) -> Dict:
         """Load configuration from JSON file"""
         if not os.path.exists(self.config_file):
             print(f"Configuration file '{self.config_file}' not found.")
-            print("Creating example configuration file...")
-            self.create_example_config()
-            sys.exit(1)
+            print("Setting up initial configuration...")
+            return None
             
         try:
             with open(self.config_file, 'r') as f:
@@ -54,48 +268,32 @@ class MoneroMiner:
         if config['mining_mode'] == 'pool' and 'pool_address' not in config:
             raise ValueError("pool_address is required for pool mining")
     
-    def create_example_config(self):
-        """Create an example configuration file with platform-specific defaults"""
-        is_mac = platform.system() == 'Darwin'
-        is_arm = platform.machine().lower() in ['arm64', 'aarch64']
+    def initialize(self):
+        """Initialize the miner - check for xmrig and setup config"""
+        # Check if xmrig is installed
+        xmrig_was_just_installed = False
         
-        example_config = {
-            "wallet_address": "YOUR_MONERO_WALLET_ADDRESS_HERE",
-            "mining_mode": "pool",
-            "miner_executable": "xmrig" if not is_mac else "./xmrig",
-            "pool_address": "pool.supportxmr.com:443",
-            "pool_password": "x",
-            "worker_name": f"m2-miner" if is_arm else "worker1",
-            "node_address": "127.0.0.1:18081",
-            "threads": 0,
-            "cpu_max_usage": 75,
-            "huge_pages": True if not is_mac else False,
-            "randomx_mode": "auto",
-            "tls_enabled": True,
-            "nicehash": False,
-            "extra_args": [],
-            "log_file": "monero-miner.log",
-            "api_port": 0,
-            "donate_level": 1
-        }
+        if not self.check_xmrig_installed():
+            print("\n" + "="*60)
+            print("XMRig Not Detected")
+            print("="*60)
+            print("\nXMRig mining software is not installed.")
+            
+            # Try to install
+            if not self.download_and_install_xmrig():
+                print("\nPlease install XMRig manually and try again.")
+                sys.exit(1)
+            
+            xmrig_was_just_installed = True
+        else:
+            print("\nXMRig detected ✓")
         
-        with open(self.config_file, 'w') as f:
-            json.dump(example_config, f, indent=4)
+        # Load or create config
+        self.config = self.load_config()
         
-        print(f"Created example configuration file: {self.config_file}")
-        print("\n" + "="*60)
-        print("IMPORTANT: Edit the configuration file and set your wallet!")
-        print("="*60)
-        if is_mac:
-            print("\nFor Mac users:")
-            print("1. Download XMRig from: https://github.com/xmrig/xmrig/releases")
-            print("2. Extract and place 'xmrig' binary in the same folder as this script")
-            print("3. Run: chmod +x xmrig")
-        print("\nPopular Monero pools:")
-        print("  - SupportXMR: pool.supportxmr.com:443")
-        print("  - MoneroOcean: gulf.moneroocean.stream:10128")
-        print("  - Nanopool: xmr-us-east1.nanopool.org:14433")
-        print("  - MineXMR: pool.minexmr.com:443")
+        # If config doesn't exist OR xmrig was just installed, setup new config with wallet prompt
+        if self.config is None or xmrig_was_just_installed:
+            self.config = self.setup_initial_config()
     
     def build_command(self) -> list:
         """Build the XMRig mining command based on configuration"""
@@ -103,9 +301,6 @@ class MoneroMiner:
         
         # Add wallet address
         wallet = self.config['wallet_address']
-        if wallet == "YOUR_MONERO_WALLET_ADDRESS_HERE":
-            print("Error: Please set your Monero wallet address in the config file!")
-            sys.exit(1)
         
         # Configure based on mining mode
         if self.config['mining_mode'] == 'solo':
@@ -227,13 +422,7 @@ class MoneroMiner:
                 
         except FileNotFoundError:
             print(f"\nError: Miner executable '{cmd[0]}' not found.")
-            print("\nFor macOS/Apple Silicon:")
-            print("1. Download XMRig from: https://github.com/xmrig/xmrig/releases")
-            print("2. Look for 'xmrig-X.X.X-macos-arm64.tar.gz' for M2 Mac")
-            print("3. Extract and place 'xmrig' in the same folder as this script")
-            print("4. Run: chmod +x xmrig")
-            print("\nFor Linux:")
-            print("  sudo apt install xmrig  # or download from GitHub")
+            print("\nPlease ensure XMRig is properly installed.")
             sys.exit(1)
         except Exception as e:
             print(f"Error starting miner: {e}")
@@ -276,10 +465,14 @@ def main():
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
     
-    # Create and start miner
+    # Create miner instance
     miner = MoneroMiner(config_file)
     
     try:
+        # Initialize (check xmrig, setup config)
+        miner.initialize()
+        
+        # Show stats info and start mining
         miner.show_stats()
         miner.start_mining()
     except KeyboardInterrupt:
@@ -287,7 +480,8 @@ def main():
         miner.stop_mining()
     except Exception as e:
         print(f"\nError: {e}")
-        miner.stop_mining()
+        if miner.process:
+            miner.stop_mining()
         sys.exit(1)
 
 if __name__ == "__main__":
