@@ -283,20 +283,21 @@ class MoneroMiner:
                             continue
                         
                         # Extract file
-                        source = zip_ref.open(member)
-                        target_path = os.path.join(self.script_dir, target_name)
-                        
-                        # Create subdirectories if needed
-                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                        
-                        with open(target_path, 'wb') as target:
-                            target.write(source.read())
+                        with zip_ref.open(member) as source:
+                            target_path = os.path.join(self.script_dir, target_name)
+                            
+                            # Create subdirectories if needed
+                            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                            
+                            with open(target_path, 'wb') as target:
+                                target.write(source.read())
                         
                         if target_name == 'xmrig.exe':
                             print(f"  ✓ {target_name}")
                         elif 'WinRing0' in target_name or target_name.endswith('.sys'):
                             print(f"  ✓ {target_name} (driver)")
                 
+                # Ensure ZIP file is closed before attempting to delete
                 xmrig_path = os.path.join(self.script_dir, 'xmrig.exe')
                 print(f"\nXMRig installed successfully at: {xmrig_path}")
                 print("WinRing0 drivers extracted for MSR MOD support")
@@ -316,9 +317,17 @@ class MoneroMiner:
                 os.chmod(xmrig_path, 0o755)
                 print(f"XMRig installed successfully at: {xmrig_path}")
             
-            # Clean up
-            os.remove(local_filename)
-            print("Cleaned up temporary files.")
+            # Clean up - add a small delay on Windows to ensure file handles are released
+            if is_zip:
+                time.sleep(0.5)
+            
+            try:
+                os.remove(local_filename)
+                print("Cleaned up temporary files.")
+            except Exception as cleanup_error:
+                print(f"Note: Could not remove temporary file {local_filename}")
+                print(f"      You can manually delete it later.")
+                # Don't fail the installation if cleanup fails
             
             return True
             
