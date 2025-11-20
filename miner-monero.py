@@ -334,6 +334,11 @@ class MoneroMiner:
         print("\nNOTE: Requires administrator/root privileges")
         print("WARNING: May cause system instability if misconfigured")
         
+        if os_type == 'linux':
+            print("\nOn Linux, MSR MOD requires:")
+            print("  1. Loading the msr kernel module")
+            print("  2. Running the miner with sudo/root")
+        
         while True:
             response = input("\nEnable MSR MOD? (Y/N) [N]: ").strip().upper()
             if response == '':
@@ -347,11 +352,47 @@ class MoneroMiner:
             if os_type == 'windows':
                 print("Make sure to run this script as Administrator!")
             else:
-                print("Make sure to run this script with sudo!")
+                print("\nSetting up MSR support on Linux...")
+                self.setup_linux_msr()
             return True
         else:
             print("MSR MOD disabled (standard mining mode).")
             return False
+    
+    def setup_linux_msr(self):
+        """Setup MSR kernel module on Linux"""
+        try:
+            # Check if msr module is loaded
+            result = subprocess.run(['lsmod'], capture_output=True, text=True)
+            if 'msr' not in result.stdout:
+                print("\nLoading MSR kernel module...")
+                print("You may be prompted for your sudo password.")
+                
+                # Try to load msr module
+                result = subprocess.run(['sudo', 'modprobe', 'msr'], 
+                                      capture_output=True, 
+                                      text=True)
+                
+                if result.returncode == 0:
+                    print("✓ MSR module loaded successfully")
+                else:
+                    print("⚠ Could not load MSR module automatically")
+                    print("  Please run manually: sudo modprobe msr")
+            else:
+                print("✓ MSR module already loaded")
+            
+            # Check if running with sudo
+            if os.geteuid() != 0:
+                print("\n⚠ IMPORTANT: You must run the miner with sudo for MSR to work!")
+                print("  Example: sudo python3 miner-monero.py")
+            else:
+                print("✓ Running with root privileges")
+                
+        except Exception as e:
+            print(f"\n⚠ Could not setup MSR automatically: {e}")
+            print("  Manual setup required:")
+            print("  1. Run: sudo modprobe msr")
+            print("  2. Start miner with: sudo python3 miner-monero.py")
     
     def setup_initial_config(self):
         """Setup initial configuration with user input"""
@@ -544,6 +585,20 @@ class MoneroMiner:
     def start_mining(self):
         """Start the mining process"""
         cmd = self.build_command()
+        
+        # Check if MSR is enabled but not running with proper privileges
+        if self.config.get('msr_mod', False):
+            os_type = self.detect_os()
+            if os_type == 'linux' and os.geteuid() != 0:
+                print("\n" + "="*60)
+                print("⚠ WARNING: MSR MOD ENABLED BUT NOT RUNNING AS ROOT")
+                print("="*60)
+                print("MSR modifications require root privileges on Linux.")
+                print("Please restart the miner with sudo:")
+                print(f"  sudo python3 {sys.argv[0]}")
+                print("\nContinuing anyway (MSR features will be disabled)...")
+                print("="*60 + "\n")
+                time.sleep(3)
         
         print("\n" + "="*60)
         print("Monero Miner Starting")
