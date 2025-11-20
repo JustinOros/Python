@@ -46,8 +46,8 @@ class MoneroMiner:
         else:
             return machine
     
-    def get_latest_xmrig_version(self) -> Optional[str]:
-        """Fetch the latest XMRig version from GitHub"""
+    def get_latest_xmrig_release(self) -> Optional[Tuple[str, list]]:
+        """Fetch the latest XMRig version and available files from GitHub"""
         try:
             url = "https://api.github.com/repos/xmrig/xmrig/releases/latest"
             req = urllib.request.Request(url)
@@ -55,10 +55,43 @@ class MoneroMiner:
             
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode())
-                return data['tag_name'].lstrip('v')
+                version = data['tag_name'].lstrip('v')
+                
+                # Extract list of asset filenames
+                assets = [asset['name'] for asset in data.get('assets', [])]
+                
+                return version, assets
         except Exception as e:
-            print(f"Error fetching latest version: {e}")
+            print(f"Error fetching latest release info: {e}")
             return None
+    
+    def find_matching_file(self, assets: list, os_type: str, arch: str) -> Optional[str]:
+        """Find the matching file for the given OS and architecture"""
+        # Build search patterns based on OS and architecture
+        if os_type == 'macos':
+            if arch == 'arm64':
+                patterns = ['macos-arm64.tar.gz', 'macos-aarch64.tar.gz']
+            elif arch == 'x64':
+                patterns = ['macos-x64.tar.gz', 'macos-x86_64.tar.gz']
+            else:
+                return None
+        elif os_type == 'linux':
+            if arch == 'arm64':
+                patterns = ['linux-static-arm64.tar.gz', 'linux-arm64.tar.gz', 'linux-aarch64.tar.gz']
+            elif arch == 'x64':
+                patterns = ['linux-static-x64.tar.gz', 'linux-x64.tar.gz', 'linux-x86_64.tar.gz']
+            else:
+                return None
+        else:
+            return None
+        
+        # Search for matching file
+        for asset in assets:
+            for pattern in patterns:
+                if pattern in asset.lower():
+                    return asset
+        
+        return None
     
     def check_xmrig_installed(self) -> bool:
         """Check if xmrig is installed"""
@@ -93,29 +126,37 @@ class MoneroMiner:
         print(f"\nDetected OS: {os_type}")
         print(f"Detected Architecture: {arch}")
         
-        if os_type != 'macos':
-            print(f"\nAutomatic installation is currently only supported for macOS.")
+        if os_type not in ['macos', 'linux']:
+            print(f"\nAutomatic installation is currently only supported for macOS and Linux.")
             print(f"Please install XMRig manually from: https://github.com/xmrig/xmrig/releases")
             return False
         
-        # Get latest version
-        print("\nFetching latest XMRig version from GitHub...")
-        version = self.get_latest_xmrig_version()
+        # Get latest release info
+        print("\nFetching latest XMRig release from GitHub...")
+        release_info = self.get_latest_xmrig_release()
         
-        if not version:
-            print("Could not determine latest version. Using default version 6.24.0")
-            version = "6.24.0"
-        
-        print(f"Latest version: {version}")
-        
-        # Determine filename based on architecture
-        if arch == 'arm64':
-            filename = f"xmrig-{version}-macos-arm64.tar.gz"
-        elif arch == 'x64':
-            filename = f"xmrig-{version}-macos-x64.tar.gz"
-        else:
-            print(f"Unsupported architecture: {arch}")
+        if not release_info:
+            print("Could not fetch release information from GitHub.")
+            print("Please install XMRig manually from: https://github.com/xmrig/xmrig/releases")
             return False
+        
+        version, assets = release_info
+        print(f"Latest version: {version}")
+        print(f"Found {len(assets)} release files")
+        
+        # Find matching file for this OS and architecture
+        filename = self.find_matching_file(assets, os_type, arch)
+        
+        if not filename:
+            print(f"\nCould not find a compatible XMRig release for {os_type} {arch}")
+            print(f"Available files:")
+            for asset in assets:
+                if asset.endswith('.tar.gz'):
+                    print(f"  - {asset}")
+            print("\nPlease download manually from: https://github.com/xmrig/xmrig/releases")
+            return False
+        
+        print(f"Found matching file: {filename}")
         
         download_url = f"https://github.com/xmrig/xmrig/releases/download/v{version}/{filename}"
         
@@ -133,16 +174,54 @@ class MoneroMiner:
             print("Installation cancelled.")
             return False
         
-        # Download
+        # Download with retry logic
         print(f"\nDownloading {filename}...")
         local_filename = os.path.join(self.script_dir, filename)
         
-        try:
-            urllib.request.urlretrieve(download_url, local_filename)
-            print("Download complete!")
-        except Exception as e:
-            print(f"Error downloading file: {e}")
-            return False
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request(download_url)
+                req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
+                req.add_header('Accept', '*/*')
+                
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    total_size = int(response.headers.get('Content-Length', 0))
+                    downloaded = 0
+                    
+                    with open(local_filename, 'wb') as f:
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            if total_size > 0:
+                                percent = (downloaded / total_size) * 100
+                                print(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)", end='', flush=True)
+                
+                print("\nDownload complete!")
+                break
+                
+            except urllib.error.HTTPError as e:
+                print(f"\nHTTP Error {e.code}: {e.reason}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
+                    time.sleep(2)
+                else:
+                    print(f"\nFailed to download after {max_retries} attempts.")
+                    print(f"Please download manually from: {download_url}")
+                    return False
+            except Exception as e:
+                print(f"\nError downloading file: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
+                    time.sleep(2)
+                else:
+                    print(f"\nFailed to download after {max_retries} attempts.")
+                    print(f"Please download manually from: {download_url}")
+                    return False
         
         # Extract
         print("Extracting archive...")
