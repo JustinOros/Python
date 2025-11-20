@@ -281,12 +281,11 @@ class MoneroMiner:
         # Get wallet address from user
         wallet_address = self.prompt_wallet_address()
         
-        # Determine xmrig path
-        xmrig_path = os.path.join(self.script_dir, 'xmrig')
-        if is_mac:
+        # Determine xmrig path - use ./xmrig for both macOS and Linux
+        if os_type in ['macos', 'linux']:
             miner_executable = "./xmrig"
         else:
-            miner_executable = "xmrig"
+            miner_executable = "xmrig.exe"  # Windows
         
         config = {
             "wallet_address": wallet_address,
