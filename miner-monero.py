@@ -253,26 +253,53 @@ class MoneroMiner:
             is_zip = filename.endswith('.zip')
             
             if is_zip:
-                # Windows ZIP file
+                # Windows ZIP file - extract all files to maintain driver support
                 with zipfile.ZipFile(local_filename, 'r') as zip_ref:
-                    # Find the xmrig.exe binary in the archive
-                    xmrig_found = False
-                    for member in zip_ref.namelist():
-                        if member.endswith('xmrig.exe') or member == 'xmrig.exe':
-                            # Extract to script directory with name 'xmrig.exe'
-                            with zip_ref.open(member) as source:
-                                target_path = os.path.join(self.script_dir, 'xmrig.exe')
-                                with open(target_path, 'wb') as target:
-                                    target.write(source.read())
-                            xmrig_found = True
+                    # Get the root folder name in the archive
+                    namelist = zip_ref.namelist()
+                    root_folder = None
+                    
+                    # Find the root folder
+                    for name in namelist:
+                        if '/' in name:
+                            root_folder = name.split('/')[0]
                             break
                     
-                    if not xmrig_found:
-                        print("Could not find xmrig.exe in the archive")
-                        return False
+                    # Extract all files
+                    print("Extracting all files (including WinRing0 drivers)...")
+                    for member in namelist:
+                        # Skip directories
+                        if member.endswith('/'):
+                            continue
+                        
+                        # Remove root folder from path
+                        if root_folder and member.startswith(root_folder + '/'):
+                            target_name = member[len(root_folder) + 1:]
+                        else:
+                            target_name = member
+                        
+                        # Skip if empty
+                        if not target_name:
+                            continue
+                        
+                        # Extract file
+                        source = zip_ref.open(member)
+                        target_path = os.path.join(self.script_dir, target_name)
+                        
+                        # Create subdirectories if needed
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        
+                        with open(target_path, 'wb') as target:
+                            target.write(source.read())
+                        
+                        if target_name == 'xmrig.exe':
+                            print(f"  ✓ {target_name}")
+                        elif 'WinRing0' in target_name or target_name.endswith('.sys'):
+                            print(f"  ✓ {target_name} (driver)")
                 
                 xmrig_path = os.path.join(self.script_dir, 'xmrig.exe')
-                print(f"XMRig installed successfully at: {xmrig_path}")
+                print(f"\nXMRig installed successfully at: {xmrig_path}")
+                print("WinRing0 drivers extracted for MSR MOD support")
             else:
                 # Unix TAR.GZ file
                 with tarfile.open(local_filename, 'r:gz') as tar:
