@@ -320,6 +320,39 @@ class MoneroMiner:
         
         return wallet
     
+    def prompt_msr_mod(self, os_type: str) -> bool:
+        """Prompt user to enable MSR MOD for performance optimization"""
+        # MSR MOD is only supported on Windows and Linux
+        if os_type not in ['windows', 'linux']:
+            return False
+        
+        print("\n" + "="*60)
+        print("MSR MOD - Performance Optimization")
+        print("="*60)
+        print("\nMSR (Model-Specific Register) modification can improve")
+        print("mining performance by 10-50% by optimizing CPU behavior.")
+        print("\nNOTE: Requires administrator/root privileges")
+        print("WARNING: May cause system instability if misconfigured")
+        
+        while True:
+            response = input("\nEnable MSR MOD? (Y/N) [N]: ").strip().upper()
+            if response == '':
+                response = 'N'
+            if response in ['Y', 'N']:
+                break
+            print("Please enter Y or N (or press ENTER for No)")
+        
+        if response == 'Y':
+            print("MSR MOD will be enabled.")
+            if os_type == 'windows':
+                print("Make sure to run this script as Administrator!")
+            else:
+                print("Make sure to run this script with sudo!")
+            return True
+        else:
+            print("MSR MOD disabled (standard mining mode).")
+            return False
+    
     def setup_initial_config(self):
         """Setup initial configuration with user input"""
         os_type = self.detect_os()
@@ -329,6 +362,9 @@ class MoneroMiner:
         
         # Get wallet address from user
         wallet_address = self.prompt_wallet_address()
+        
+        # Prompt for MSR MOD
+        enable_msr = self.prompt_msr_mod(os_type)
         
         # Determine xmrig path based on OS
         if os_type == 'windows':
@@ -351,6 +387,7 @@ class MoneroMiner:
             "randomx_mode": "auto",
             "tls_enabled": True,
             "nicehash": False,
+            "msr_mod": enable_msr,
             "extra_args": [],
             "log_file": "monero-miner.log",
             "api_port": 0,
@@ -481,6 +518,11 @@ class MoneroMiner:
         rx_mode = self.config.get('randomx_mode', 'auto')
         if rx_mode in ['light', 'fast']:
             cmd.extend(['--randomx-mode', rx_mode])
+        
+        # MSR MOD for performance optimization
+        if self.config.get('msr_mod', False):
+            cmd.append('--randomx-wrmsr')
+            print("MSR MOD enabled for optimized performance")
         
         # API port for monitoring
         api_port = self.config.get('api_port', 0)
