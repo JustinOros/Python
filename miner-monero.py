@@ -320,6 +320,14 @@ class MoneroMiner:
         
         return wallet
     
+    def check_windows_admin(self) -> bool:
+        """Check if script is running with Administrator privileges on Windows"""
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except:
+            return False
+    
     def prompt_msr_mod(self, os_type: str) -> bool:
         """Prompt user to enable MSR MOD for performance optimization"""
         # MSR MOD is only supported on Windows and Linux
@@ -338,6 +346,10 @@ class MoneroMiner:
             print("\nOn Linux, MSR MOD requires:")
             print("  1. Loading the msr kernel module")
             print("  2. Running the miner with sudo/root")
+        elif os_type == 'windows':
+            print("\nOn Windows, MSR MOD requires:")
+            print("  1. Running as Administrator")
+            print("  2. XMRig will automatically load WinRing0 driver")
         
         while True:
             response = input("\nEnable MSR MOD? (Y/N) [N]: ").strip().upper()
@@ -350,7 +362,14 @@ class MoneroMiner:
         if response == 'Y':
             print("MSR MOD will be enabled.")
             if os_type == 'windows':
-                print("Make sure to run this script as Administrator!")
+                if not self.check_windows_admin():
+                    print("\n⚠ WARNING: Not running as Administrator!")
+                    print("  Please restart this script by:")
+                    print("  1. Right-click on Command Prompt or PowerShell")
+                    print("  2. Select 'Run as Administrator'")
+                    print("  3. Run the script again")
+                else:
+                    print("✓ Running with Administrator privileges")
             else:
                 print("\nSetting up MSR support on Linux...")
                 self.setup_linux_msr()
@@ -596,6 +615,18 @@ class MoneroMiner:
                 print("MSR modifications require root privileges on Linux.")
                 print("Please restart the miner with sudo:")
                 print(f"  sudo python3 {sys.argv[0]}")
+                print("\nContinuing anyway (MSR features will be disabled)...")
+                print("="*60 + "\n")
+                time.sleep(3)
+            elif os_type == 'windows' and not self.check_windows_admin():
+                print("\n" + "="*60)
+                print("⚠ WARNING: MSR MOD ENABLED BUT NOT RUNNING AS ADMINISTRATOR")
+                print("="*60)
+                print("MSR modifications require Administrator privileges on Windows.")
+                print("Please restart this script as Administrator:")
+                print("  1. Right-click Command Prompt or PowerShell")
+                print("  2. Select 'Run as Administrator'")
+                print(f"  3. Run: python {sys.argv[0]}")
                 print("\nContinuing anyway (MSR features will be disabled)...")
                 print("="*60 + "\n")
                 time.sleep(3)
