@@ -13,6 +13,7 @@ import signal
 import platform
 import urllib.request
 import tarfile
+import zipfile
 import re
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -43,6 +44,8 @@ class MoneroMiner:
             return 'arm64'
         elif machine in ['x86_64', 'amd64', 'x64']:
             return 'x64'
+        elif machine in ['i386', 'i686', 'x86']:
+            return 'x86'
         else:
             return machine
     
@@ -82,6 +85,13 @@ class MoneroMiner:
                 patterns = ['linux-static-x64.tar.gz', 'linux-x64.tar.gz', 'linux-x86_64.tar.gz']
             else:
                 return None
+        elif os_type == 'windows':
+            if arch == 'x64':
+                patterns = ['msvc-win64.zip', 'win64.zip', 'windows-x64.zip']
+            elif arch == 'x86':
+                patterns = ['msvc-win32.zip', 'win32.zip', 'windows-x86.zip']
+            else:
+                return None
         else:
             return None
         
@@ -102,19 +112,31 @@ class MoneroMiner:
         ]
         
         for path in local_paths:
-            if os.path.exists(path) and os.access(path, os.X_OK):
+            if os.path.exists(path) and os.access(path, os.X_OK if os.name != 'nt' else os.F_OK):
                 return True
         
-        # Check in system PATH
-        try:
-            result = subprocess.run(['which', 'xmrig'], 
-                                  capture_output=True, 
-                                  text=True, 
-                                  timeout=5)
-            if result.returncode == 0:
-                return True
-        except:
-            pass
+        # Check in system PATH (Unix-like systems)
+        if os.name != 'nt':
+            try:
+                result = subprocess.run(['which', 'xmrig'], 
+                                      capture_output=True, 
+                                      text=True, 
+                                      timeout=5)
+                if result.returncode == 0:
+                    return True
+            except:
+                pass
+        else:
+            # Windows - check with 'where' command
+            try:
+                result = subprocess.run(['where', 'xmrig.exe'], 
+                                      capture_output=True, 
+                                      text=True, 
+                                      timeout=5)
+                if result.returncode == 0:
+                    return True
+            except:
+                pass
         
         return False
     
@@ -126,8 +148,8 @@ class MoneroMiner:
         print(f"\nDetected OS: {os_type}")
         print(f"Detected Architecture: {arch}")
         
-        if os_type not in ['macos', 'linux']:
-            print(f"\nAutomatic installation is currently only supported for macOS and Linux.")
+        if os_type not in ['macos', 'linux', 'windows']:
+            print(f"\nAutomatic installation is not supported for this OS.")
             print(f"Please install XMRig manually from: https://github.com/xmrig/xmrig/releases")
             return False
         
@@ -151,7 +173,7 @@ class MoneroMiner:
             print(f"\nCould not find a compatible XMRig release for {os_type} {arch}")
             print(f"Available files:")
             for asset in assets:
-                if asset.endswith('.tar.gz'):
+                if asset.endswith(('.tar.gz', '.zip')):
                     print(f"  - {asset}")
             print("\nPlease download manually from: https://github.com/xmrig/xmrig/releases")
             return False
@@ -163,12 +185,14 @@ class MoneroMiner:
         print(f"\nReady to download: {filename}")
         print(f"URL: {download_url}")
         
-        # Prompt user
+        # Prompt user (default to Yes)
         while True:
-            response = input("\nDownload and install XMRig? (Y/N): ").strip().upper()
+            response = input("\nDownload and install XMRig? (Y/N) [Y]: ").strip().upper()
+            if response == '':
+                response = 'Y'
             if response in ['Y', 'N']:
                 break
-            print("Please enter Y or N")
+            print("Please enter Y or N (or press ENTER for Yes)")
         
         if response == 'N':
             print("Installation cancelled.")
@@ -226,19 +250,44 @@ class MoneroMiner:
         # Extract
         print("Extracting archive...")
         try:
-            with tarfile.open(local_filename, 'r:gz') as tar:
-                # Find the xmrig binary in the archive
-                for member in tar.getmembers():
-                    if member.name.endswith('/xmrig') or member.name == 'xmrig':
-                        member.name = 'xmrig'
-                        tar.extract(member, self.script_dir)
-                        break
+            is_zip = filename.endswith('.zip')
             
-            xmrig_path = os.path.join(self.script_dir, 'xmrig')
-            
-            # Make executable
-            os.chmod(xmrig_path, 0o755)
-            print(f"XMRig installed successfully at: {xmrig_path}")
+            if is_zip:
+                # Windows ZIP file
+                with zipfile.ZipFile(local_filename, 'r') as zip_ref:
+                    # Find the xmrig.exe binary in the archive
+                    xmrig_found = False
+                    for member in zip_ref.namelist():
+                        if member.endswith('xmrig.exe') or member == 'xmrig.exe':
+                            # Extract to script directory with name 'xmrig.exe'
+                            with zip_ref.open(member) as source:
+                                target_path = os.path.join(self.script_dir, 'xmrig.exe')
+                                with open(target_path, 'wb') as target:
+                                    target.write(source.read())
+                            xmrig_found = True
+                            break
+                    
+                    if not xmrig_found:
+                        print("Could not find xmrig.exe in the archive")
+                        return False
+                
+                xmrig_path = os.path.join(self.script_dir, 'xmrig.exe')
+                print(f"XMRig installed successfully at: {xmrig_path}")
+            else:
+                # Unix TAR.GZ file
+                with tarfile.open(local_filename, 'r:gz') as tar:
+                    # Find the xmrig binary in the archive
+                    for member in tar.getmembers():
+                        if member.name.endswith('/xmrig') or member.name == 'xmrig':
+                            member.name = 'xmrig'
+                            tar.extract(member, self.script_dir)
+                            break
+                
+                xmrig_path = os.path.join(self.script_dir, 'xmrig')
+                
+                # Make executable (Unix-like systems)
+                os.chmod(xmrig_path, 0o755)
+                print(f"XMRig installed successfully at: {xmrig_path}")
             
             # Clean up
             os.remove(local_filename)
@@ -281,11 +330,12 @@ class MoneroMiner:
         # Get wallet address from user
         wallet_address = self.prompt_wallet_address()
         
-        # Determine xmrig path - use ./xmrig for both macOS and Linux
-        if os_type in ['macos', 'linux']:
-            miner_executable = "./xmrig"
+        # Determine xmrig path based on OS
+        if os_type == 'windows':
+            miner_executable = "xmrig.exe"
         else:
-            miner_executable = "xmrig.exe"  # Windows
+            # macOS and Linux
+            miner_executable = "./xmrig"
         
         config = {
             "wallet_address": wallet_address,
