@@ -12,11 +12,14 @@ import time
 import signal
 import platform
 import urllib.request
+import urllib.error
 import tarfile
 import zipfile
 import re
+import threading
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+from datetime import datetime
 
 class MoneroMiner:
     def __init__(self, config_file: str = "miner-monero.json"):
@@ -24,6 +27,8 @@ class MoneroMiner:
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.config = None
         self.process: Optional[subprocess.Popen] = None
+        self.stats_thread = None
+        self.stop_stats = False
         
     def detect_os(self) -> str:
         """Detect the operating system"""
@@ -487,7 +492,8 @@ class MoneroMiner:
             "extra_args": [],
             "log_file": "monero-miner.log",
             "api_port": 0,
-            "donate_level": 1
+            "donate_level": 1,
+            "stats_update_interval": 300
         }
         
         with open(self.config_file, 'w') as f:
@@ -528,6 +534,145 @@ class MoneroMiner:
         
         if config['mining_mode'] == 'pool' and 'pool_address' not in config:
             raise ValueError("pool_address is required for pool mining")
+    
+    def is_supportxmr_pool(self) -> bool:
+        """Check if the configured pool is SupportXMR"""
+        if self.config['mining_mode'] != 'pool':
+            return False
+        
+        pool_addr = self.config.get('pool_address', '').lower()
+        return 'supportxmr.com' in pool_addr
+    
+    def fetch_pool_stats(self) -> Optional[Dict]:
+        """Fetch mining statistics from SupportXMR API"""
+        try:
+            wallet = self.config['wallet_address']
+            url = f"https://www.supportxmr.com/api/miner/{wallet}/stats"
+            
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'Mozilla/5.0')
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                return data
+        except urllib.error.HTTPError as e:
+            print(f"\nError fetching pool stats (HTTP {e.code}): {e.reason}")
+            return None
+        except urllib.error.URLError as e:
+            print(f"\nError fetching pool stats (Network): {e.reason}")
+            return None
+        except Exception as e:
+            print(f"\nError fetching pool stats: {e}")
+            return None
+    
+    def format_hashrate(self, hash_rate: float) -> str:
+        """Format hash rate in human-readable format"""
+        if hash_rate >= 1000000:
+            return f"{hash_rate / 1000000:.2f} MH/s"
+        elif hash_rate >= 1000:
+            return f"{hash_rate / 1000:.2f} KH/s"
+        else:
+            return f"{hash_rate:.2f} H/s"
+    
+    def format_xmr(self, piconero: int) -> str:
+        """Convert piconero to XMR"""
+        xmr = piconero / 1000000000000
+        return f"{xmr:.12f} XMR"
+    
+    def format_time_ago(self, timestamp: int) -> str:
+        """Format timestamp as time ago"""
+        now = int(time.time())
+        diff = now - timestamp
+        
+        if diff < 60:
+            return f"{diff} seconds ago"
+        elif diff < 3600:
+            return f"{diff // 60} minutes ago"
+        elif diff < 86400:
+            return f"{diff // 3600} hours ago"
+        else:
+            return f"{diff // 86400} days ago"
+    
+    def display_pool_stats(self, stats: Dict):
+        """Display pool statistics in a readable format"""
+        print("\n" + "="*60)
+        print(f"Pool Statistics - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print("="*60)
+        
+        hash_rate = stats.get('hash', 0)
+        total_hashes = stats.get('totalHashes', 0)
+        valid_shares = stats.get('validShares', 0)
+        invalid_shares = stats.get('invalidShares', 0)
+        amt_paid = stats.get('amtPaid', 0)
+        amt_due = stats.get('amtDue', 0)
+        txn_count = stats.get('txnCount', 0)
+        last_hash = stats.get('lastHash', 0)
+        
+        print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
+        print(f"Total Hashes:      {total_hashes:,}")
+        print(f"Valid Shares:      {valid_shares:,}")
+        print(f"Invalid Shares:    {invalid_shares:,}")
+        
+        if valid_shares + invalid_shares > 0:
+            efficiency = (valid_shares / (valid_shares + invalid_shares)) * 100
+            print(f"Share Efficiency:  {efficiency:.2f}%")
+        
+        print(f"\nAmount Paid:       {self.format_xmr(amt_paid)}")
+        print(f"Amount Due:        {self.format_xmr(amt_due)}")
+        print(f"Total Earned:      {self.format_xmr(amt_paid + amt_due)}")
+        print(f"Payment Count:     {txn_count}")
+        
+        if last_hash > 0:
+            print(f"Last Share:        {self.format_time_ago(last_hash)}")
+        
+        print("="*60 + "\n")
+    
+    def stats_monitor_thread(self):
+        """Background thread to periodically fetch and display pool stats"""
+        interval = self.config.get('stats_update_interval', 300)
+        
+        # Display stats immediately
+        print("\nFetching initial pool statistics...")
+        stats = self.fetch_pool_stats()
+        if stats:
+            self.display_pool_stats(stats)
+        else:
+            print("Could not fetch initial pool statistics. Will retry...\n")
+        
+        # Continue periodic updates
+        while not self.stop_stats:
+            # Wait for the interval, checking stop flag frequently
+            for _ in range(interval):
+                if self.stop_stats:
+                    break
+                time.sleep(1)
+            
+            if self.stop_stats:
+                break
+            
+            # Fetch and display stats
+            stats = self.fetch_pool_stats()
+            if stats:
+                self.display_pool_stats(stats)
+    
+    def start_stats_monitor(self):
+        """Start the stats monitoring thread"""
+        if not self.is_supportxmr_pool():
+            return
+        
+        print("\nPool stats monitoring enabled for SupportXMR")
+        interval = self.config.get('stats_update_interval', 300)
+        print(f"Stats will be updated every {interval} seconds ({interval // 60} minutes)")
+        
+        self.stop_stats = False
+        self.stats_thread = threading.Thread(target=self.stats_monitor_thread, daemon=True)
+        self.stats_thread.start()
+    
+    def stop_stats_monitor(self):
+        """Stop the stats monitoring thread"""
+        if self.stats_thread:
+            self.stop_stats = True
+            self.stats_thread.join(timeout=2)
     
     def initialize(self):
         """Initialize the miner - check for xmrig and setup config"""
@@ -676,6 +821,9 @@ class MoneroMiner:
         print(f"Command: {' '.join(cmd)}")
         print("="*60 + "\n")
         
+        # Start stats monitoring if using SupportXMR
+        self.start_stats_monitor()
+        
         # Setup logging if specified
         log_file = self.config.get('log_file')
         log_handle = None
@@ -722,9 +870,12 @@ class MoneroMiner:
         finally:
             if log_handle:
                 log_handle.close()
+            self.stop_stats_monitor()
     
     def stop_mining(self):
         """Stop the mining process"""
+        self.stop_stats_monitor()
+        
         if self.process:
             print("Stopping miner...")
             self.process.terminate()
