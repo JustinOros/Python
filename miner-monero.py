@@ -525,7 +525,7 @@ class MoneroMiner:
             "nicehash": False,
             "msr_mod": enable_msr,
             "extra_args": [],
-            "log_file": "monero-miner.log",
+            "log_file": "miner-monero.log",
             "api_port": 0,
             "donate_level": 1,
             "stats_update_interval": 300
