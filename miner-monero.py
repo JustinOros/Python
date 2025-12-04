@@ -145,6 +145,50 @@ class MoneroMiner:
         
         return False
     
+    def download_file_with_progress(self, url: str, local_filename: str, max_retries: int = 3) -> bool:
+        """Download a file with progress indication and retry logic"""
+        for attempt in range(max_retries):
+            try:
+                req = urllib.request.Request(url)
+                req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
+                req.add_header('Accept', '*/*')
+                
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    total_size = int(response.headers.get('Content-Length', 0))
+                    downloaded = 0
+                    
+                    with open(local_filename, 'wb') as f:
+                        while True:
+                            chunk = response.read(8192)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            if total_size > 0:
+                                percent = (downloaded / total_size) * 100
+                                print(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)", end='', flush=True)
+                
+                print("\nDownload complete!")
+                return True
+                
+            except urllib.error.HTTPError as e:
+                print(f"\nHTTP Error {e.code}: {e.reason}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
+                    time.sleep(2)
+                else:
+                    return False
+            except Exception as e:
+                print(f"\nError downloading file: {e}")
+                if attempt < max_retries - 1:
+                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
+                    time.sleep(2)
+                else:
+                    return False
+        
+        return False
+    
     def download_and_install_xmrig(self) -> bool:
         """Download and install XMRig based on OS and architecture"""
         os_type = self.detect_os()
@@ -185,10 +229,11 @@ class MoneroMiner:
         
         print(f"Found matching file: {filename}")
         
-        download_url = f"https://github.com/xmrig/xmrig/releases/download/v{version}/{filename}"
+        # Try HTTPS first
+        https_url = f"https://github.com/xmrig/xmrig/releases/download/v{version}/{filename}"
         
         print(f"\nReady to download: {filename}")
-        print(f"URL: {download_url}")
+        print(f"URL: {https_url}")
         
         # Prompt user (default to Yes)
         while True:
@@ -203,54 +248,44 @@ class MoneroMiner:
             print("Installation cancelled.")
             return False
         
-        # Download with retry logic
-        print(f"\nDownloading {filename}...")
+        # Download with HTTPS
+        print(f"\nDownloading {filename} via HTTPS...")
         local_filename = os.path.join(self.script_dir, filename)
         
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                req = urllib.request.Request(download_url)
-                req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
-                req.add_header('Accept', '*/*')
+        download_success = self.download_file_with_progress(https_url, local_filename)
+        
+        # If HTTPS failed, offer HTTP fallback
+        if not download_success:
+            print(f"\nHTTPS download failed after multiple attempts.")
+            print("\n" + "="*60)
+            print("HTTP FALLBACK OPTION")
+            print("="*60)
+            print("WARNING: HTTP connections are not encrypted and less secure.")
+            print("Only use this option if HTTPS continues to fail.")
+            
+            while True:
+                response = input("\nAttempt download via HTTP instead? (Y/N) [N]: ").strip().upper()
+                if response == '':
+                    response = 'N'
+                if response in ['Y', 'N']:
+                    break
+                print("Please enter Y or N (or press ENTER for No)")
+            
+            if response == 'Y':
+                http_url = f"http://github.com/xmrig/xmrig/releases/download/v{version}/{filename}"
+                print(f"\nDownloading {filename} via HTTP...")
+                print(f"URL: {http_url}")
                 
-                with urllib.request.urlopen(req, timeout=30) as response:
-                    total_size = int(response.headers.get('Content-Length', 0))
-                    downloaded = 0
-                    
-                    with open(local_filename, 'wb') as f:
-                        while True:
-                            chunk = response.read(8192)
-                            if not chunk:
-                                break
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            
-                            if total_size > 0:
-                                percent = (downloaded / total_size) * 100
-                                print(f"\rProgress: {percent:.1f}% ({downloaded}/{total_size} bytes)", end='', flush=True)
+                download_success = self.download_file_with_progress(http_url, local_filename)
                 
-                print("\nDownload complete!")
-                break
-                
-            except urllib.error.HTTPError as e:
-                print(f"\nHTTP Error {e.code}: {e.reason}")
-                if attempt < max_retries - 1:
-                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
-                    time.sleep(2)
-                else:
-                    print(f"\nFailed to download after {max_retries} attempts.")
-                    print(f"Please download manually from: {download_url}")
+                if not download_success:
+                    print(f"\nHTTP download also failed.")
+                    print(f"Please download manually from: https://github.com/xmrig/xmrig/releases")
                     return False
-            except Exception as e:
-                print(f"\nError downloading file: {e}")
-                if attempt < max_retries - 1:
-                    print(f"Retrying... (Attempt {attempt + 2}/{max_retries})")
-                    time.sleep(2)
-                else:
-                    print(f"\nFailed to download after {max_retries} attempts.")
-                    print(f"Please download manually from: {download_url}")
-                    return False
+            else:
+                print("HTTP download declined.")
+                print(f"Please download manually from: https://github.com/xmrig/xmrig/releases")
+                return False
         
         # Extract
         print("Extracting archive...")
