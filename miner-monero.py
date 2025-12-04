@@ -525,7 +525,7 @@ class MoneroMiner:
             "nicehash": False,
             "msr_mod": enable_msr,
             "extra_args": [],
-            "log_file": "miner-monero.log",
+            "log_file": "monero-miner.log",
             "api_port": 0,
             "donate_level": 1,
             "stats_update_interval": 300
@@ -659,6 +659,38 @@ class MoneroMiner:
         
         if last_hash > 0:
             print(f"Last Share:        {self.format_time_ago(last_hash)}")
+        
+        # Calculate earnings projections if currently mining (hashrate > 0)
+        if hash_rate > 0 and last_hash > 0:
+            # Calculate time elapsed since start (use last_hash as reference)
+            now = int(time.time())
+            time_elapsed_seconds = now - last_hash + (now - last_hash)  # Approximate mining duration
+            
+            # More accurate: use total earned and estimate time mining
+            # We'll calculate based on amt_due if available
+            total_earned_piconero = amt_paid + amt_due
+            
+            if total_earned_piconero > 0 and total_hashes > 0:
+                # Calculate earnings rate per hash
+                xmr_per_hash = total_earned_piconero / total_hashes
+                
+                # Project future earnings based on current hashrate
+                seconds_per_day = 86400
+                seconds_per_month = seconds_per_day * 30.44  # Average month
+                seconds_per_year = seconds_per_day * 365.25  # Account for leap years
+                
+                hashes_per_day = hash_rate * seconds_per_day
+                hashes_per_month = hash_rate * seconds_per_month
+                hashes_per_year = hash_rate * seconds_per_year
+                
+                xmr_per_day = (hashes_per_day * xmr_per_hash)
+                xmr_per_month = (hashes_per_month * xmr_per_hash)
+                xmr_per_year = (hashes_per_year * xmr_per_hash)
+                
+                print(f"\nProjected Earnings (at current hashrate):")
+                print(f"Earnings Per Day:   {self.format_xmr(int(xmr_per_day))}")
+                print(f"Earnings Per Month: {self.format_xmr(int(xmr_per_month))}")
+                print(f"Earnings Per Year:  {self.format_xmr(int(xmr_per_year))}")
         
         print("="*60 + "\n")
     
