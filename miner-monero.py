@@ -17,8 +17,10 @@ import tarfile
 import zipfile
 import re
 import threading
+import tempfile
+import shutil
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 from datetime import datetime
 
 class MoneroMiner:
@@ -27,8 +29,10 @@ class MoneroMiner:
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.config = None
         self.process: Optional[subprocess.Popen] = None
+        self.gpu_process: Optional[subprocess.Popen] = None
         self.stats_thread = None
         self.stop_stats = False
+        self.has_nvidia_gpu = False
         
         # Known mining pools (with minimum payout amounts)
         self.known_pools = [
@@ -64,6 +68,45 @@ class MoneroMiner:
         else:
             return machine
     
+    def detect_nvidia_gpu(self) -> bool:
+        """Detect if an NVIDIA GPU is present"""
+        os_type = self.detect_os()
+        
+        try:
+            if os_type == 'windows':
+                # Try nvidia-smi on Windows
+                result = subprocess.run(
+                    ['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    gpu_name = result.stdout.strip().split('\n')[0]
+                    print(f"NVIDIA GPU detected: {gpu_name}")
+                    return True
+            else:
+                # Linux/macOS - try nvidia-smi
+                result = subprocess.run(
+                    ['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    gpu_name = result.stdout.strip().split('\n')[0]
+                    print(f"NVIDIA GPU detected: {gpu_name}")
+                    return True
+        except FileNotFoundError:
+            pass
+        except subprocess.TimeoutExpired:
+            pass
+        except Exception as e:
+            print(f"Error detecting NVIDIA GPU: {e}")
+        
+        return False
+    
     def get_latest_xmrig_release(self) -> Optional[Tuple[str, list]]:
         """Fetch the latest XMRig version and available files from GitHub"""
         try:
@@ -81,6 +124,30 @@ class MoneroMiner:
                 return version, assets
         except Exception as e:
             print(f"Error fetching latest release info: {e}")
+            return None
+    
+    def get_latest_gminer_release(self) -> Optional[Tuple[str, List[dict]]]:
+        """Fetch the latest GMiner version and available files from GitHub"""
+        try:
+            url = "https://api.github.com/repos/develsoftware/GMinerRelease/releases/latest"
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'Mozilla/5.0')
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode())
+                version = data['tag_name'].lstrip('v')
+                
+                # Extract assets with download URLs
+                assets = []
+                for asset in data.get('assets', []):
+                    assets.append({
+                        'name': asset['name'],
+                        'url': asset['browser_download_url']
+                    })
+                
+                return version, assets
+        except Exception as e:
+            print(f"Error fetching latest GMiner release info: {e}")
             return None
     
     def find_matching_file(self, assets: list, os_type: str, arch: str) -> Optional[str]:
@@ -116,6 +183,16 @@ class MoneroMiner:
                 if pattern in asset.lower():
                     return asset
         
+        return None
+    
+    def find_matching_gminer_file(self, assets: List[dict], os_type: str) -> Optional[dict]:
+        """Find the matching GMiner file for the given OS"""
+        for asset in assets:
+            name = asset['name'].lower()
+            if os_type == 'windows' and 'windows' in name and name.endswith('.zip'):
+                return asset
+            elif os_type == 'linux' and 'linux' in name and name.endswith('.tar.xz'):
+                return asset
         return None
     
     def check_xmrig_installed(self) -> bool:
@@ -154,6 +231,17 @@ class MoneroMiner:
                 pass
         
         return False
+    
+    def check_gminer_installed(self) -> bool:
+        """Check if GMiner is installed in script directory"""
+        os_type = self.detect_os()
+        
+        if os_type == 'windows':
+            gminer_path = os.path.join(self.script_dir, 'miner.exe')
+        else:
+            gminer_path = os.path.join(self.script_dir, 'miner')
+        
+        return os.path.exists(gminer_path) and os.access(gminer_path, os.X_OK if os.name != 'nt' else os.F_OK)
     
     def download_file_with_progress(self, url: str, local_filename: str, max_retries: int = 3) -> bool:
         """Download a file with progress indication and retry logic"""
@@ -385,6 +473,126 @@ class MoneroMiner:
             print(f"Error extracting archive: {e}")
             return False
     
+    def download_and_install_gminer(self) -> bool:
+        """Download and install GMiner for GPU mining"""
+        os_type = self.detect_os()
+        
+        # GMiner only supports Windows and Linux
+        if os_type not in ['windows', 'linux']:
+            print(f"\nGMiner is not available for {os_type}.")
+            print("GPU mining with GMiner is only supported on Windows and Linux.")
+            return False
+        
+        print("\n" + "="*60)
+        print("GMiner Installation (GPU Mining)")
+        print("="*60)
+        
+        # Get latest release info
+        print("\nFetching latest GMiner release from GitHub...")
+        release_info = self.get_latest_gminer_release()
+        
+        if not release_info:
+            print("Could not fetch release information from GitHub.")
+            print("Please install GMiner manually from: https://github.com/develsoftware/GMinerRelease/releases")
+            return False
+        
+        version, assets = release_info
+        print(f"Latest version: {version}")
+        print(f"Found {len(assets)} release files")
+        
+        # Find matching file for this OS
+        asset = self.find_matching_gminer_file(assets, os_type)
+        
+        if not asset:
+            print(f"\nCould not find a compatible GMiner release for {os_type}")
+            print("Available files:")
+            for a in assets:
+                print(f"  - {a['name']}")
+            print("\nPlease download manually from: https://github.com/develsoftware/GMinerRelease/releases")
+            return False
+        
+        filename = asset['name']
+        download_url = asset['url']
+        
+        print(f"Found matching file: {filename}")
+        print(f"\nReady to download: {filename}")
+        
+        # Prompt user (default to Yes)
+        while True:
+            response = input("\nDownload and install GMiner for GPU mining? (Y/N) [Y]: ").strip().upper()
+            if response == '':
+                response = 'Y'
+            if response in ['Y', 'N']:
+                break
+            print("Please enter Y or N (or press ENTER for Yes)")
+        
+        if response == 'N':
+            print("GMiner installation cancelled. GPU mining will not be available.")
+            return False
+        
+        # Download to temp directory
+        print(f"\nDownloading {filename}...")
+        temp_dir = tempfile.mkdtemp()
+        local_filename = os.path.join(temp_dir, filename)
+        
+        download_success = self.download_file_with_progress(download_url, local_filename)
+        
+        if not download_success:
+            print(f"\nDownload failed.")
+            print("Please download GMiner manually from: https://github.com/develsoftware/GMinerRelease/releases")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return False
+        
+        # Extract just the miner executable
+        print("Extracting GMiner...")
+        try:
+            if os_type == 'windows':
+                # Windows ZIP file
+                with zipfile.ZipFile(local_filename, 'r') as zip_ref:
+                    # Find miner.exe in the archive
+                    for member in zip_ref.namelist():
+                        if member.endswith('miner.exe'):
+                            # Extract to temp, then copy just the exe
+                            zip_ref.extract(member, temp_dir)
+                            src_path = os.path.join(temp_dir, member)
+                            dst_path = os.path.join(self.script_dir, 'miner.exe')
+                            shutil.copy2(src_path, dst_path)
+                            print(f"  ✓ miner.exe")
+                            break
+                
+                gminer_path = os.path.join(self.script_dir, 'miner.exe')
+            else:
+                # Linux tar.xz file
+                import lzma
+                
+                with lzma.open(local_filename) as xz:
+                    with tarfile.open(fileobj=xz) as tar:
+                        # Find the miner binary in the archive
+                        for member in tar.getmembers():
+                            if member.name.endswith('/miner') or member.name == 'miner':
+                                # Extract to temp
+                                tar.extract(member, temp_dir)
+                                src_path = os.path.join(temp_dir, member.name)
+                                dst_path = os.path.join(self.script_dir, 'miner')
+                                shutil.copy2(src_path, dst_path)
+                                os.chmod(dst_path, 0o755)
+                                print(f"  ✓ miner")
+                                break
+                
+                gminer_path = os.path.join(self.script_dir, 'miner')
+            
+            print(f"\nGMiner installed successfully at: {gminer_path}")
+            
+            # Cleanup temp directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error extracting GMiner: {e}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return False
+    
     def prompt_wallet_address(self) -> str:
         """Prompt user for wallet address"""
         default_wallet = "85NGrygcwq36kjLaNKZevT53H4EeHRQYeje5Y3gq3GYkKsEpwKpGjqd1tGxAVEjDfxEha6SYtyNYPbmPXduYqy47Q6JwbuW"
@@ -555,6 +763,31 @@ class MoneroMiner:
             print("  1. Run: sudo modprobe msr")
             print("  2. Start miner with: sudo python3 miner-monero.py")
     
+    def prompt_gpu_mining(self) -> bool:
+        """Prompt user to enable GPU mining if NVIDIA GPU is detected"""
+        print("\n" + "="*60)
+        print("GPU Mining Configuration")
+        print("="*60)
+        print("\nAn NVIDIA GPU was detected on your system.")
+        print("GPU mining can significantly increase your earnings by mining")
+        print("GPU-friendly algorithms (like KAWPOW) while your CPU mines RandomX.")
+        print("Both will be paid out in XMR via MoneroOcean.")
+        
+        while True:
+            response = input("\nEnable GPU mining? (Y/N) [Y]: ").strip().upper()
+            if response == '':
+                response = 'Y'
+            if response in ['Y', 'N']:
+                break
+            print("Please enter Y or N (or press ENTER for Yes)")
+        
+        if response == 'Y':
+            print("GPU mining will be enabled.")
+            return True
+        else:
+            print("GPU mining disabled.")
+            return False
+    
     def setup_initial_config(self):
         """Setup initial configuration with user input"""
         os_type = self.detect_os()
@@ -570,6 +803,11 @@ class MoneroMiner:
         
         # Prompt for MSR MOD
         enable_msr = self.prompt_msr_mod(os_type)
+        
+        # Check for NVIDIA GPU and prompt for GPU mining
+        enable_gpu_mining = False
+        if self.has_nvidia_gpu:
+            enable_gpu_mining = self.prompt_gpu_mining()
         
         # Determine xmrig path based on OS
         if os_type == 'windows':
@@ -594,6 +832,9 @@ class MoneroMiner:
             "coin": coin,
             "nicehash": False,
             "msr_mod": enable_msr,
+            "gpu_mining": enable_gpu_mining,
+            "gpu_algo": "kawpow",
+            "gpu_worker_name": "gpu-worker",
             "extra_args": [],
             "log_file": "monero-miner.log",
             "api_port": 0,
@@ -983,6 +1224,12 @@ class MoneroMiner:
     
     def initialize(self):
         """Initialize the miner - check for xmrig and setup config"""
+        # Check for NVIDIA GPU first
+        print("\nChecking for NVIDIA GPU...")
+        self.has_nvidia_gpu = self.detect_nvidia_gpu()
+        if not self.has_nvidia_gpu:
+            print("No NVIDIA GPU detected. CPU mining only.")
+        
         # Check if xmrig is installed
         xmrig_was_just_installed = False
         
@@ -1007,6 +1254,51 @@ class MoneroMiner:
         # If config doesn't exist OR xmrig was just installed, setup new config with wallet prompt
         if self.config is None or xmrig_was_just_installed:
             self.config = self.setup_initial_config()
+        
+        # Check if GPU mining is enabled and GMiner needs to be installed
+        if self.config.get('gpu_mining', False) and self.has_nvidia_gpu:
+            if not self.check_gminer_installed():
+                print("\n" + "="*60)
+                print("GMiner Not Detected")
+                print("="*60)
+                print("\nGMiner is required for GPU mining.")
+                
+                if not self.download_and_install_gminer():
+                    print("\nGPU mining will be disabled.")
+                    self.config['gpu_mining'] = False
+            else:
+                print("GMiner detected ✓")
+        
+        # If NVIDIA GPU detected but not in config, offer to enable GPU mining
+        if self.has_nvidia_gpu and not self.config.get('gpu_mining', False):
+            if self.is_moneroocean_pool():  # Only MoneroOcean supports multi-algo
+                print("\n" + "="*60)
+                print("GPU Mining Available")
+                print("="*60)
+                print("\nAn NVIDIA GPU was detected but GPU mining is not enabled.")
+                
+                while True:
+                    response = input("\nWould you like to enable GPU mining? (Y/N) [Y]: ").strip().upper()
+                    if response == '':
+                        response = 'Y'
+                    if response in ['Y', 'N']:
+                        break
+                    print("Please enter Y or N")
+                
+                if response == 'Y':
+                    self.config['gpu_mining'] = True
+                    self.config['gpu_algo'] = 'kawpow'
+                    self.config['gpu_worker_name'] = 'gpu-worker'
+                    
+                    # Save updated config
+                    with open(self.config_file, 'w') as f:
+                        json.dump(self.config, f, indent=4)
+                    
+                    # Install GMiner if needed
+                    if not self.check_gminer_installed():
+                        if not self.download_and_install_gminer():
+                            print("\nGPU mining will be disabled.")
+                            self.config['gpu_mining'] = False
     
     def build_command(self) -> list:
         """Build the XMRig mining command based on configuration"""
@@ -1094,6 +1386,88 @@ class MoneroMiner:
         
         return cmd
     
+    def build_gminer_command(self) -> list:
+        """Build the GMiner command for GPU mining"""
+        os_type = self.detect_os()
+        
+        if os_type == 'windows':
+            gminer_path = os.path.join(self.script_dir, 'miner.exe')
+        else:
+            gminer_path = os.path.join(self.script_dir, 'miner')
+        
+        wallet = self.config['wallet_address']
+        gpu_algo = self.config.get('gpu_algo', 'kawpow')
+        gpu_worker = self.config.get('gpu_worker_name', 'gpu-worker')
+        
+        # MoneroOcean GPU mining endpoint
+        cmd = [
+            gminer_path,
+            '--server', 'gulf.moneroocean.stream:10128',
+            '--user', wallet,
+            '--pass', f'{gpu_worker}~{gpu_algo}',
+            '--algo', gpu_algo,
+            '--proto', 'stratum'
+        ]
+        
+        return cmd
+    
+    def start_gpu_mining(self):
+        """Start the GPU mining process with GMiner"""
+        if not self.config.get('gpu_mining', False):
+            return
+        
+        if not self.has_nvidia_gpu:
+            print("GPU mining enabled but no NVIDIA GPU detected. Skipping GPU miner.")
+            return
+        
+        if not self.check_gminer_installed():
+            print("GPU mining enabled but GMiner not installed. Skipping GPU miner.")
+            return
+        
+        cmd = self.build_gminer_command()
+        
+        print("\n" + "="*60)
+        print("Starting GPU Miner (GMiner)")
+        print("="*60)
+        print(f"Algorithm: {self.config.get('gpu_algo', 'kawpow')}")
+        print(f"Worker: {self.config.get('gpu_worker_name', 'gpu-worker')}")
+        print(f"Command: {' '.join(cmd)}")
+        print("="*60 + "\n")
+        
+        try:
+            # Start GMiner process
+            if self.detect_os() == 'windows':
+                self.gpu_process = subprocess.Popen(
+                    cmd,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            else:
+                self.gpu_process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            
+            print("GPU miner started successfully.")
+            
+        except FileNotFoundError:
+            print(f"\nError: GMiner executable not found.")
+            print("GPU mining will not be available.")
+        except Exception as e:
+            print(f"Error starting GPU miner: {e}")
+    
+    def stop_gpu_mining(self):
+        """Stop the GPU mining process"""
+        if self.gpu_process:
+            print("Stopping GPU miner...")
+            self.gpu_process.terminate()
+            try:
+                self.gpu_process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                print("Force killing GPU miner process...")
+                self.gpu_process.kill()
+            print("GPU miner stopped.")
+    
     def start_mining(self):
         """Start the mining process"""
         cmd = self.build_command()
@@ -1130,8 +1504,13 @@ class MoneroMiner:
         print(f"Wallet: {self.config['wallet_address'][:20]}...{self.config['wallet_address'][-10:]}")
         print(f"Mode: {self.config['mining_mode'].upper()}")
         print(f"Platform: {platform.system()} ({platform.machine()})")
+        print(f"CPU Mining: Enabled (XMRig)")
+        print(f"GPU Mining: {'Enabled (GMiner)' if self.config.get('gpu_mining', False) and self.has_nvidia_gpu else 'Disabled'}")
         print(f"Command: {' '.join(cmd)}")
         print("="*60 + "\n")
+        
+        # Start GPU mining first if enabled
+        self.start_gpu_mining()
         
         # Start stats monitoring if using SupportXMR or MoneroOcean
         self.start_stats_monitor()
@@ -1183,20 +1562,22 @@ class MoneroMiner:
             if log_handle:
                 log_handle.close()
             self.stop_stats_monitor()
+            self.stop_gpu_mining()
     
     def stop_mining(self):
         """Stop the mining process"""
         self.stop_stats_monitor()
+        self.stop_gpu_mining()
         
         if self.process:
-            print("Stopping miner...")
+            print("Stopping CPU miner...")
             self.process.terminate()
             try:
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                print("Force killing miner process...")
+                print("Force killing CPU miner process...")
                 self.process.kill()
-            print("Miner stopped.")
+            print("CPU miner stopped.")
     
     def show_stats(self):
         """Display mining statistics if API is enabled"""
