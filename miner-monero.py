@@ -30,6 +30,16 @@ class MoneroMiner:
         self.stats_thread = None
         self.stop_stats = False
         
+        # Known mining pools (with minimum payout amounts)
+        self.known_pools = [
+            {"name": "MoneroOcean", "address": "gulf.moneroocean.stream:10128", "tls": False, "coin": None, "min_payout": "0.003 XMR"},
+            {"name": "SupportXMR", "address": "pool.supportxmr.com:443", "tls": True, "coin": "XMR", "min_payout": "0.1 XMR"},
+            {"name": "NanoPool", "address": "xmr-eu1.nanopool.org:14433", "tls": True, "coin": "XMR", "min_payout": "0.1 XMR"},
+            {"name": "HashVault", "address": "pool.hashvault.pro:443", "tls": True, "coin": "XMR", "min_payout": "0.1 XMR"},
+            {"name": "HeroMiners", "address": "monero.herominers.com:1111", "tls": False, "coin": "XMR", "min_payout": "0.1 XMR"},
+            {"name": "C3Pool", "address": "mine.c3pool.com:13333", "tls": False, "coin": None, "min_payout": "0.001 XMR", "no_api": True},
+        ]
+        
     def detect_os(self) -> str:
         """Detect the operating system"""
         system = platform.system()
@@ -396,6 +406,62 @@ class MoneroMiner:
         
         return wallet
     
+    def prompt_pool_selection(self) -> Tuple[str, bool, Optional[str]]:
+        """Prompt user to select a mining pool"""
+        print("\n" + "="*60)
+        print("Mining Pool Selection")
+        print("="*60)
+        print("\nAvailable pools:")
+        
+        for i, pool in enumerate(self.known_pools):
+            default_marker = " (default)" if i == 0 else ""
+            tls_marker = " [TLS]" if pool["tls"] else ""
+            min_payout = pool.get("min_payout", "")
+            no_api = " [no stats]" if pool.get("no_api") else ""
+            print(f"  {i + 1}. {pool['name']}: {pool['address']}{tls_marker} (Min: {min_payout}){no_api}{default_marker}")
+        
+        print(f"  {len(self.known_pools) + 1}. Custom pool (enter your own)")
+        
+        print("\nPress ENTER to use MoneroOcean, or enter a number:")
+        
+        while True:
+            choice = input("Pool Selection: ").strip()
+            
+            if choice == '':
+                # Default to MoneroOcean
+                pool = self.known_pools[0]
+                print(f"Using {pool['name']} pool.")
+                return pool['address'], pool['tls'], pool.get('coin')
+            
+            try:
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(self.known_pools):
+                    pool = self.known_pools[choice_num - 1]
+                    print(f"Using {pool['name']} pool.")
+                    return pool['address'], pool['tls'], pool.get('coin')
+                elif choice_num == len(self.known_pools) + 1:
+                    # Custom pool
+                    print("\nEnter custom pool address (e.g., pool.example.com:3333):")
+                    custom_addr = input("Pool Address: ").strip()
+                    if not custom_addr:
+                        print("Invalid address. Please try again.")
+                        continue
+                    
+                    while True:
+                        tls_choice = input("Enable TLS? (Y/N) [N]: ").strip().upper()
+                        if tls_choice == '':
+                            tls_choice = 'N'
+                        if tls_choice in ['Y', 'N']:
+                            break
+                        print("Please enter Y or N")
+                    
+                    print(f"Using custom pool: {custom_addr}")
+                    return custom_addr, tls_choice == 'Y', "XMR"
+                else:
+                    print(f"Please enter a number between 1 and {len(self.known_pools) + 1}")
+            except ValueError:
+                print("Please enter a valid number or press ENTER for default")
+    
     def check_windows_admin(self) -> bool:
         """Check if script is running with Administrator privileges on Windows"""
         try:
@@ -499,6 +565,9 @@ class MoneroMiner:
         # Get wallet address from user
         wallet_address = self.prompt_wallet_address()
         
+        # Get pool selection from user
+        pool_address, tls_enabled, coin = self.prompt_pool_selection()
+        
         # Prompt for MSR MOD
         enable_msr = self.prompt_msr_mod(os_type)
         
@@ -513,7 +582,7 @@ class MoneroMiner:
             "wallet_address": wallet_address,
             "mining_mode": "pool",
             "miner_executable": miner_executable,
-            "pool_address": "pool.supportxmr.com:443",
+            "pool_address": pool_address,
             "pool_password": "x",
             "worker_name": f"m2-miner" if is_arm else "worker1",
             "node_address": "127.0.0.1:18081",
@@ -521,7 +590,8 @@ class MoneroMiner:
             "cpu_max_usage": 75,
             "huge_pages": True if not is_mac else False,
             "randomx_mode": "auto",
-            "tls_enabled": True,
+            "tls_enabled": tls_enabled,
+            "coin": coin,
             "nicehash": False,
             "msr_mod": enable_msr,
             "extra_args": [],
@@ -578,17 +648,88 @@ class MoneroMiner:
         pool_addr = self.config.get('pool_address', '').lower()
         return 'supportxmr.com' in pool_addr
     
+    def is_moneroocean_pool(self) -> bool:
+        """Check if the configured pool is MoneroOcean"""
+        if self.config['mining_mode'] != 'pool':
+            return False
+        
+        pool_addr = self.config.get('pool_address', '').lower()
+        return 'moneroocean' in pool_addr
+    
+    def is_nanopool_pool(self) -> bool:
+        """Check if the configured pool is NanoPool"""
+        if self.config['mining_mode'] != 'pool':
+            return False
+        
+        pool_addr = self.config.get('pool_address', '').lower()
+        return 'nanopool' in pool_addr
+    
+    def is_hashvault_pool(self) -> bool:
+        """Check if the configured pool is HashVault"""
+        if self.config['mining_mode'] != 'pool':
+            return False
+        
+        pool_addr = self.config.get('pool_address', '').lower()
+        return 'hashvault' in pool_addr
+    
+    def is_herominers_pool(self) -> bool:
+        """Check if the configured pool is HeroMiners"""
+        if self.config['mining_mode'] != 'pool':
+            return False
+        
+        pool_addr = self.config.get('pool_address', '').lower()
+        return 'herominers' in pool_addr
+    
     def fetch_pool_stats(self) -> Optional[Dict]:
-        """Fetch mining statistics from SupportXMR API"""
+        """Fetch mining statistics from pool API"""
         try:
             wallet = self.config['wallet_address']
-            url = f"https://www.supportxmr.com/api/miner/{wallet}/stats"
+            
+            if self.is_supportxmr_pool():
+                url = f"https://www.supportxmr.com/api/miner/{wallet}/stats"
+            elif self.is_moneroocean_pool():
+                url = f"https://api.moneroocean.stream/miner/{wallet}/stats"
+            elif self.is_nanopool_pool():
+                url = f"https://api.nanopool.org/v1/xmr/user/{wallet}"
+            elif self.is_hashvault_pool():
+                url = f"https://api.hashvault.pro/v3/monero/wallet/{wallet}/stats?chart=false"
+            elif self.is_herominers_pool():
+                url = f"https://monero.herominers.com/api/stats_address?address={wallet}"
+            else:
+                return None
             
             req = urllib.request.Request(url)
             req.add_header('User-Agent', 'Mozilla/5.0')
             
             with urllib.request.urlopen(req, timeout=10) as response:
                 data = json.loads(response.read().decode())
+                
+                # NanoPool wraps data differently
+                if self.is_nanopool_pool():
+                    if data.get('status') is True:
+                        return data.get('data')
+                    else:
+                        error_msg = data.get('error', 'Unknown error')
+                        if 'not found' in error_msg.lower():
+                            print(f"\nNanoPool: Account not found yet.")
+                            print("  This is normal for new miners - NanoPool creates your account")
+                            print("  ~30 minutes after your first submitted share.")
+                        else:
+                            print(f"\nNanoPool API error: {error_msg}")
+                        return None
+                
+                # HashVault returns data directly but may have error field
+                if self.is_hashvault_pool():
+                    if 'error' in data:
+                        error_msg = data.get('error', 'Unknown error')
+                        if 'not found' in str(error_msg).lower() or 'no data' in str(error_msg).lower():
+                            print(f"\nHashVault: Account not found yet.")
+                            print("  This is normal for new miners - stats appear after submitting shares.")
+                        else:
+                            print(f"\nHashVault API error: {error_msg}")
+                        return None
+                    return data
+                
                 return data
         except urllib.error.HTTPError as e:
             print(f"\nError fetching pool stats (HTTP {e.code}): {e.reason}")
@@ -634,63 +775,151 @@ class MoneroMiner:
         print(f"Pool Statistics - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*60)
         
-        hash_rate = stats.get('hash', 0)
-        total_hashes = stats.get('totalHashes', 0)
-        valid_shares = stats.get('validShares', 0)
-        invalid_shares = stats.get('invalidShares', 0)
-        amt_paid = stats.get('amtPaid', 0)
-        amt_due = stats.get('amtDue', 0)
-        txn_count = stats.get('txnCount', 0)
-        last_hash = stats.get('lastHash', 0)
-        
-        print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
-        print(f"Total Hashes:      {total_hashes:,}")
-        print(f"Valid Shares:      {valid_shares:,}")
-        print(f"Invalid Shares:    {invalid_shares:,}")
-        
-        if valid_shares + invalid_shares > 0:
-            efficiency = (valid_shares / (valid_shares + invalid_shares)) * 100
-            print(f"Share Efficiency:  {efficiency:.2f}%")
-        
-        print(f"\nAmount Paid:       {self.format_xmr(amt_paid)}")
-        print(f"Amount Due:        {self.format_xmr(amt_due)}")
-        print(f"Total Earned:      {self.format_xmr(amt_paid + amt_due)}")
-        print(f"Payment Count:     {txn_count}")
-        
-        if last_hash > 0:
-            print(f"Last Share:        {self.format_time_ago(last_hash)}")
-        
-        # Calculate earnings projections if currently mining (hashrate > 0)
-        if hash_rate > 0 and last_hash > 0:
-            # Calculate time elapsed since start (use last_hash as reference)
-            now = int(time.time())
-            time_elapsed_seconds = now - last_hash + (now - last_hash)  # Approximate mining duration
+        # NanoPool uses different field names
+        if self.is_nanopool_pool():
+            hash_rate = stats.get('hashrate', 0) or 0
+            avg_hashrate_1h = stats.get('avgHashrate', {}).get('h1', 0) or 0
+            avg_hashrate_6h = stats.get('avgHashrate', {}).get('h6', 0) or 0
+            avg_hashrate_24h = stats.get('avgHashrate', {}).get('h24', 0) or 0
+            balance = stats.get('balance', 0) or 0
+            unconfirmed_balance = stats.get('unconfirmed_balance', 0) or 0
             
-            # More accurate: use total earned and estimate time mining
-            # We'll calculate based on amt_due if available
-            total_earned_piconero = amt_paid + amt_due
+            print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
+            print(f"1h Avg Hashrate:   {self.format_hashrate(avg_hashrate_1h)}")
+            print(f"6h Avg Hashrate:   {self.format_hashrate(avg_hashrate_6h)}")
+            print(f"24h Avg Hashrate:  {self.format_hashrate(avg_hashrate_24h)}")
+            print(f"\nBalance:           {balance:.12f} XMR")
+            print(f"Unconfirmed:       {unconfirmed_balance:.12f} XMR")
             
-            if total_earned_piconero > 0 and total_hashes > 0:
-                # Calculate earnings rate per hash
-                xmr_per_hash = total_earned_piconero / total_hashes
+            # Worker info
+            workers = stats.get('workers', [])
+            if workers:
+                print(f"\nWorkers ({len(workers)}):")
+                for worker in workers:
+                    w_name = worker.get('id', 'unknown')
+                    w_hashrate = worker.get('hashrate', 0) or 0
+                    w_rating = worker.get('rating', 0) or 0
+                    print(f"  {w_name}: {self.format_hashrate(w_hashrate)} (rating: {w_rating})")
+        
+        # HashVault uses its own format
+        elif self.is_hashvault_pool():
+            collective = stats.get('collective', {})
+            revenue = stats.get('revenue', {})
+            
+            hash_rate = collective.get('hashRate', 0) or 0
+            total_hashes = collective.get('totalHashes', 0) or 0
+            valid_shares = collective.get('validShares', 0) or 0
+            invalid_shares = collective.get('invalidShares', 0) or 0
+            
+            confirmed_balance = revenue.get('confirmedBalance', 0) or 0
+            pending_balance = revenue.get('pendingBalance', 0) or 0
+            total_paid = revenue.get('totalPaid', 0) or 0
+            
+            print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
+            print(f"Total Hashes:      {total_hashes:,}")
+            print(f"Valid Shares:      {valid_shares:,}")
+            print(f"Invalid Shares:    {invalid_shares:,}")
+            
+            if valid_shares + invalid_shares > 0:
+                efficiency = (valid_shares / (valid_shares + invalid_shares)) * 100
+                print(f"Share Efficiency:  {efficiency:.2f}%")
+            
+            print(f"\nConfirmed Balance: {self.format_xmr(confirmed_balance)}")
+            print(f"Pending Balance:   {self.format_xmr(pending_balance)}")
+            print(f"Total Paid:        {self.format_xmr(total_paid)}")
+        
+        elif self.is_herominers_pool():
+            # HeroMiners uses stats_address format
+            stats_data = stats.get('stats', {})
+            hash_rate = stats_data.get('hashrate', 0) or 0
+            hash_rate_24h = stats_data.get('hashrate_24h', 0) or 0
+            balance = stats_data.get('balance', 0) or 0
+            paid = stats_data.get('paid', 0) or 0
+            last_share = stats_data.get('lastShare', 0) or 0
+            
+            # Convert last_share to int if it's a string
+            if isinstance(last_share, str):
+                try:
+                    last_share = int(last_share)
+                except (ValueError, TypeError):
+                    last_share = 0
+            
+            print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
+            print(f"24h Avg Hashrate:  {self.format_hashrate(hash_rate_24h)}")
+            print(f"\nBalance:           {self.format_xmr(balance)}")
+            print(f"Total Paid:        {self.format_xmr(paid)}")
+            
+            if last_share > 0:
+                print(f"Last Share:        {self.format_time_ago(last_share)}")
+            
+            # Worker info if available
+            workers = stats.get('workers', [])
+            if workers:
+                print(f"\nWorkers ({len(workers)}):")
+                for worker in workers:
+                    w_name = worker.get('name', 'unknown')
+                    w_hashrate = worker.get('hashrate', 0) or 0
+                    print(f"  {w_name}: {self.format_hashrate(w_hashrate)}")
+        
+        else:
+            # SupportXMR and MoneroOcean format
+            hash_rate = stats.get('hash', 0) or 0
+            total_hashes = stats.get('totalHashes', 0) or 0
+            valid_shares = stats.get('validShares', 0) or 0
+            invalid_shares = stats.get('invalidShares', 0) or 0
+            amt_paid = stats.get('amtPaid', 0) or 0
+            amt_due = stats.get('amtDue', 0) or 0
+            txn_count = stats.get('txnCount', 0) or 0
+            last_hash = stats.get('lastHash', 0) or 0
+            
+            print(f"Current Hashrate:  {self.format_hashrate(hash_rate)}")
+            print(f"Total Hashes:      {total_hashes:,}")
+            print(f"Valid Shares:      {valid_shares:,}")
+            print(f"Invalid Shares:    {invalid_shares:,}")
+            
+            if valid_shares + invalid_shares > 0:
+                efficiency = (valid_shares / (valid_shares + invalid_shares)) * 100
+                print(f"Share Efficiency:  {efficiency:.2f}%")
+            
+            print(f"\nAmount Paid:       {self.format_xmr(amt_paid)}")
+            print(f"Amount Due:        {self.format_xmr(amt_due)}")
+            print(f"Total Earned:      {self.format_xmr(amt_paid + amt_due)}")
+            print(f"Payment Count:     {txn_count}")
+            
+            if last_hash > 0:
+                print(f"Last Share:        {self.format_time_ago(last_hash)}")
+            
+            # Calculate earnings projections if currently mining (hashrate > 0)
+            if hash_rate > 0 and last_hash > 0:
+                # Calculate time elapsed since start (use last_hash as reference)
+                now = int(time.time())
+                time_elapsed_seconds = now - last_hash + (now - last_hash)  # Approximate mining duration
                 
-                # Project future earnings based on current hashrate
-                seconds_per_day = 86400
-                seconds_per_month = seconds_per_day * 30.44  # Average month
-                seconds_per_year = seconds_per_day * 365.25  # Account for leap years
+                # More accurate: use total earned and estimate time mining
+                # We'll calculate based on amt_due if available
+                total_earned_piconero = amt_paid + amt_due
                 
-                hashes_per_day = hash_rate * seconds_per_day
-                hashes_per_month = hash_rate * seconds_per_month
-                hashes_per_year = hash_rate * seconds_per_year
-                
-                xmr_per_day = (hashes_per_day * xmr_per_hash)
-                xmr_per_month = (hashes_per_month * xmr_per_hash)
-                xmr_per_year = (hashes_per_year * xmr_per_hash)
-                
-                print(f"\nProjected Earnings (at current hashrate):")
-                print(f"Earnings Per Day:   {self.format_xmr(int(xmr_per_day))}")
-                print(f"Earnings Per Month: {self.format_xmr(int(xmr_per_month))}")
-                print(f"Earnings Per Year:  {self.format_xmr(int(xmr_per_year))}")
+                if total_earned_piconero > 0 and total_hashes > 0:
+                    # Calculate earnings rate per hash
+                    xmr_per_hash = total_earned_piconero / total_hashes
+                    
+                    # Project future earnings based on current hashrate
+                    seconds_per_day = 86400
+                    seconds_per_month = seconds_per_day * 30.44  # Average month
+                    seconds_per_year = seconds_per_day * 365.25  # Account for leap years
+                    
+                    hashes_per_day = hash_rate * seconds_per_day
+                    hashes_per_month = hash_rate * seconds_per_month
+                    hashes_per_year = hash_rate * seconds_per_year
+                    
+                    xmr_per_day = (hashes_per_day * xmr_per_hash)
+                    xmr_per_month = (hashes_per_month * xmr_per_hash)
+                    xmr_per_year = (hashes_per_year * xmr_per_hash)
+                    
+                    print(f"\nProjected Earnings (at current hashrate):")
+                    print(f"Earnings Per Day:   {self.format_xmr(int(xmr_per_day))}")
+                    print(f"Earnings Per Month: {self.format_xmr(int(xmr_per_month))}")
+                    print(f"Earnings Per Year:  {self.format_xmr(int(xmr_per_year))}")
         
         print("="*60 + "\n")
     
@@ -724,10 +953,21 @@ class MoneroMiner:
     
     def start_stats_monitor(self):
         """Start the stats monitoring thread"""
-        if not self.is_supportxmr_pool():
+        if not self.is_supportxmr_pool() and not self.is_moneroocean_pool() and not self.is_nanopool_pool() and not self.is_hashvault_pool() and not self.is_herominers_pool():
             return
         
-        print("\nPool stats monitoring enabled for SupportXMR")
+        if self.is_herominers_pool():
+            pool_name = "HeroMiners"
+        elif self.is_hashvault_pool():
+            pool_name = "HashVault"
+        elif self.is_nanopool_pool():
+            pool_name = "NanoPool"
+        elif self.is_moneroocean_pool():
+            pool_name = "MoneroOcean"
+        else:
+            pool_name = "SupportXMR"
+        
+        print(f"\nPool stats monitoring enabled for {pool_name}")
         interval = self.config.get('stats_update_interval', 300)
         print(f"Stats will be updated every {interval} seconds ({interval // 60} minutes)")
         
@@ -805,6 +1045,11 @@ class MoneroMiner:
             # NiceHash mode
             if self.config.get('nicehash', False):
                 cmd.append('--nicehash')
+            
+            # Coin specification (required by some pools)
+            coin = self.config.get('coin')
+            if coin:
+                cmd.extend(['--coin', coin])
             
             print(f"Pool mining mode - connecting to pool at {pool_addr}")
         
@@ -888,7 +1133,7 @@ class MoneroMiner:
         print(f"Command: {' '.join(cmd)}")
         print("="*60 + "\n")
         
-        # Start stats monitoring if using SupportXMR
+        # Start stats monitoring if using SupportXMR or MoneroOcean
         self.start_stats_monitor()
         
         # Setup logging if specified
