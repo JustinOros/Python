@@ -117,9 +117,11 @@ class MeshtasticCLI:
         """Prompt user to select and connect to a radio"""
         while True:
             try:
-                choice = input("\nEnter number to connect (or 'q' to quit): ").strip()
+                choice = input("\nEnter number to connect (or 'q' to quit, 'r' to refresh): ").strip()
                 if choice.lower() == 'q':
                     sys.exit(0)
+                elif choice.lower() == 'r':
+                    return None  # Signal to refresh scan
                 
                 idx = int(choice) - 1
                 if 0 <= idx < len(devices):
@@ -338,14 +340,29 @@ class MeshtasticCLI:
         """Main program flow"""
         self.setup_exit_handler()
         
-        # Step 1: Scan for radios
-        devices = self.scan_radios()
-        if not devices:
-            return
-        
-        # Step 2: Connect to radio
-        if not self.connect_radio(devices):
-            return
+        # Step 1: Scan for radios with refresh option
+        while True:
+            devices = self.scan_radios()
+            if not devices:
+                print("\nNo devices found. Press Enter to scan again, or 'q' to quit: ", end='')
+                choice = input().strip().lower()
+                if choice == 'q':
+                    return
+                continue
+            
+            # Step 2: Connect to radio with refresh option
+            connection_result = self.connect_radio(devices)
+            if connection_result is None:
+                # User selected 'r' to refresh
+                continue
+            elif connection_result:
+                break  # Successfully connected
+            else:
+                # Connection failed
+                print("\nConnection failed. Press Enter to try again, or 'q' to quit: ", end='')
+                choice = input().strip().lower()
+                if choice == 'q':
+                    return
         
         # Setup packet callback using the correct method
         print("Setting up message listener...")
