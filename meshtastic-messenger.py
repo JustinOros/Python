@@ -23,6 +23,7 @@ class MeshtasticCLI:
         self.exit_flag = False
         self.selected_node = None
         self.debug_mode = debug_mode
+        self.current_mode = "node_selection"  # Can be "node_selection" or "messaging"
         
     def setup_exit_handler(self):
         """Setup exit handler"""
@@ -212,9 +213,10 @@ class MeshtasticCLI:
                         }
                         self.messages.append(msg)
                         # Print new messages in real-time
-                        time_str = msg['time'].strftime('%Y-%m-%d %H:%M:%S')
-                        print(f"\n[{time_str}] {msg['from']} ({msg['from_short']}) -> {msg['to']} ({msg['to_short']}): {msg['text']}")
-                        print("> ", end='', flush=True)
+                        if self.current_mode == "messaging":
+                            time_str = msg['time'].strftime('%Y-%m-%d %H:%M:%S')
+                            print(f"\n[{time_str}] {msg['from']} ({msg['from_short']}) -> {msg['to']} ({msg['to_short']}): {msg['text']}")
+                            print("> ", end='', flush=True)
         except Exception as e:
             if self.debug_mode:
                 print(f"[DEBUG] Error processing packet: {e}")
@@ -230,7 +232,7 @@ class MeshtasticCLI:
             print("Waiting for node activity...")
             return None
         
-        print(f"\nNodes active in the last hour ({len(recent_nodes)}):")
+        print(f"\nActive Nodes (Seen in the last hour) ({len(recent_nodes)}):")
         node_list = list(recent_nodes.values())
         for i, node in enumerate(node_list, 1):
             time_ago = (datetime.now() - node['last_seen']).seconds // 60
@@ -295,16 +297,21 @@ class MeshtasticCLI:
         """Main messaging loop"""
         print("\n=== Messaging Interface ===")
         print("Type your message and press ENTER to send")
+        print("Type /back to return to node selection")
         print("Type /quit to exit\n")
         
         while not self.exit_flag:
             try:
                 msg = input("> ").strip()
                 
-                # Check for quit command
+                # Check for special commands
                 if msg.lower() == '/quit':
                     self.exit_program()
                     break
+                elif msg.lower() == '/back':
+                    print("\nReturning to node selection...\n")
+                    self.current_mode = "node_selection"
+                    return False  # Signal to go back
                 
                 if self.exit_flag:
                     break
@@ -325,6 +332,7 @@ class MeshtasticCLI:
                 self.interface.close()
             except:
                 pass
+        return True  # Signal to exit
     
     def run(self):
         """Main program flow"""
@@ -387,21 +395,25 @@ class MeshtasticCLI:
         
         time.sleep(10)
         
-        # Step 4: Select contact
+        # Main loop that allows switching between modes
         while not self.exit_flag:
-            node_list = self.list_recent_nodes()
-            if node_list is None:
-                time.sleep(5)
-                continue
+            if self.current_mode == "node_selection":
+                node_list = self.list_recent_nodes()
+                if node_list is None:
+                    time.sleep(5)
+                    continue
+                
+                if self.select_contact(node_list):
+                    self.current_mode = "messaging"
+                    self.display_messages()
+                else:
+                    continue  # Refresh node list
             
-            if self.select_contact(node_list):
-                break
-        
-        # Step 5: Display message history
-        self.display_messages()
-        
-        # Step 6: Enter messaging loop
-        self.message_loop()
+            elif self.current_mode == "messaging":
+                should_exit = self.message_loop()
+                if should_exit:
+                    break  # Exit program
+                # If we get here, user typed /back, so we'll loop again in node_selection mode
 
 if __name__ == "__main__":
     # Parse command line arguments
