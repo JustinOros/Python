@@ -68,6 +68,83 @@ class MoneroMiner:
         else:
             return machine
     
+    def detect_cpu_model(self) -> str:
+        """Detect the specific CPU model for worker naming"""
+        try:
+            system = platform.system()
+            
+            if system == 'Darwin':
+                # macOS - use sysctl to get CPU brand
+                result = subprocess.run(
+                    ['sysctl', '-n', 'machdep.cpu.brand_string'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    cpu_brand = result.stdout.strip()
+                    # Extract Apple Silicon chip name (M1, M2, M3, M4, etc.)
+                    if 'Apple M' in cpu_brand:
+                        match = re.search(r'Apple M(\d+)', cpu_brand)
+                        if match:
+                            return f"m{match.group(1)}"
+                    return "mac"
+            
+            elif system == 'Linux':
+                # Linux - read from /proc/cpuinfo
+                with open('/proc/cpuinfo', 'r') as f:
+                    for line in f:
+                        if line.startswith('model name'):
+                            cpu_model = line.split(':')[1].strip()
+                            # Try to extract meaningful CPU identifier
+                            # AMD Ryzen
+                            if 'Ryzen' in cpu_model:
+                                match = re.search(r'Ryzen\s+(\d+)\s+(\d+)', cpu_model)
+                                if match:
+                                    return f"ryzen{match.group(1)}-{match.group(2)}"
+                                return "ryzen"
+                            # Intel Core
+                            elif 'Intel' in cpu_model:
+                                match = re.search(r'i(\d)-(\d+)', cpu_model)
+                                if match:
+                                    return f"i{match.group(1)}-{match.group(2)}"
+                                return "intel"
+                            break
+                return "linux"
+            
+            elif system == 'Windows':
+                # Windows - use wmic
+                result = subprocess.run(
+                    ['wmic', 'cpu', 'get', 'name'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    if len(lines) > 1:
+                        cpu_model = lines[1].strip()
+                        # AMD Ryzen
+                        if 'Ryzen' in cpu_model:
+                            match = re.search(r'Ryzen\s+(\d+)\s+(\d+)', cpu_model)
+                            if match:
+                                return f"ryzen{match.group(1)}-{match.group(2)}"
+                            return "ryzen"
+                        # Intel Core
+                        elif 'Intel' in cpu_model:
+                            match = re.search(r'i(\d)-(\d+)', cpu_model)
+                            if match:
+                                return f"i{match.group(1)}-{match.group(2)}"
+                            return "intel"
+                return "windows"
+        
+        except Exception as e:
+            print(f"Could not detect CPU model: {e}")
+        
+        # Fallback to generic names
+        arch = self.detect_cpu_arch()
+        return "arm64" if arch == 'arm64' else "x64"
+    
     def detect_nvidia_gpu(self) -> bool:
         """Detect if an NVIDIA GPU is present"""
         os_type = self.detect_os()
@@ -793,7 +870,6 @@ class MoneroMiner:
         os_type = self.detect_os()
         arch = self.detect_cpu_arch()
         is_mac = os_type == 'macos'
-        is_arm = arch == 'arm64'
         
         # Get wallet address from user
         wallet_address = self.prompt_wallet_address()
@@ -816,13 +892,17 @@ class MoneroMiner:
             # macOS and Linux
             miner_executable = "./xmrig"
         
+        # Detect CPU model for worker name
+        cpu_model = self.detect_cpu_model()
+        worker_name = f"{cpu_model}-miner"
+        
         config = {
             "wallet_address": wallet_address,
             "mining_mode": "pool",
             "miner_executable": miner_executable,
             "pool_address": pool_address,
             "pool_password": "x",
-            "worker_name": f"m2-miner" if is_arm else "worker1",
+            "worker_name": worker_name,
             "node_address": "127.0.0.1:18081",
             "threads": 0,
             "cpu_max_usage": 75,
@@ -846,6 +926,7 @@ class MoneroMiner:
             json.dump(config, f, indent=4)
         
         print(f"\nConfiguration saved to: {self.config_file}")
+        print(f"Worker name set to: {worker_name}")
         return config
         
     def load_config(self) -> Dict:
