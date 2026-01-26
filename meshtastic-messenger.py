@@ -159,18 +159,32 @@ class MeshtasticCLI:
             if 'from' in packet:
                 node_id = packet['from']
                 node_short_id = f"!{node_id:08x}"
-                node_long_name = packet.get('fromId', node_short_id)
+                
+                # Get the best available name
+                if 'fromId' in packet and packet['fromId']:
+                    node_name = packet['fromId']
+                else:
+                    # Try to get name from node database
+                    node_name = node_short_id
+                    if hasattr(self.interface, 'nodesByNum') and node_id in self.interface.nodesByNum:
+                        node_info = self.interface.nodesByNum[node_id]
+                        user_info = node_info.get('user', {})
+                        if 'longName' in user_info and user_info['longName']:
+                            node_name = user_info['longName']
+                        elif 'shortName' in user_info and user_info['shortName']:
+                            node_name = user_info['shortName']
                 
                 if node_id not in self.nodes:
                     self.nodes[node_id] = {
                         'id': node_id,
                         'last_seen': datetime.now(),
-                        'name': node_long_name,
+                        'name': node_name,
                         'short_id': node_short_id
                     }
                 else:
                     self.nodes[node_id]['last_seen'] = datetime.now()
-                    if 'fromId' in packet:
+                    # Update name if we got a better one
+                    if 'fromId' in packet and packet['fromId']:
                         self.nodes[node_id]['name'] = packet['fromId']
             
             # Store and display messages
@@ -236,9 +250,15 @@ class MeshtasticCLI:
         
         print(f"\nActive Nodes (Seen in the last hour) ({len(recent_nodes)}):")
         node_list = list(recent_nodes.values())
+        
+        # Sort by last seen (most recent first)
+        node_list.sort(key=lambda x: x['last_seen'], reverse=True)
+        
         for i, node in enumerate(node_list, 1):
             time_ago = (datetime.now() - node['last_seen']).seconds // 60
-            print(f"  {i}. {node['name']} (seen {time_ago}m ago)")
+            # Display the name, fall back to short ID if no name
+            display_name = node['name'] if node['name'] and node['name'] != node['short_id'] else node['short_id']
+            print(f"  {i}. {display_name} (seen {time_ago}m ago)")
         
         return node_list
     
@@ -258,7 +278,9 @@ class MeshtasticCLI:
                 idx = int(choice) - 1
                 if 0 <= idx < len(node_list):
                     self.selected_node = node_list[idx]
-                    print(f"Messaging: {self.selected_node['name']}")
+                    # Use the display name for messaging
+                    display_name = self.selected_node['name'] if self.selected_node['name'] and self.selected_node['name'] != self.selected_node['short_id'] else self.selected_node['short_id']
+                    print(f"Messaging: {display_name}")
                     return True
                 else:
                     print("Invalid selection. Try again.")
@@ -285,8 +307,9 @@ class MeshtasticCLI:
             if self.selected_node:
                 # Direct message
                 self.interface.sendText(text, destinationId=self.selected_node['id'])
-                short_id = self.selected_node.get('short_id', f"!{self.selected_node['id']:08x}")
-                to_display = f"{self.selected_node['name']} ({short_id})"
+                # Use display name for output
+                display_name = self.selected_node['name'] if self.selected_node['name'] and self.selected_node['name'] != self.selected_node['short_id'] else self.selected_node['short_id']
+                to_display = f"{display_name} ({self.selected_node['short_id']})"
                 print(f"[{time_str}] You -> {to_display}: {text}")
             else:
                 # Broadcast
@@ -395,17 +418,46 @@ class MeshtasticCLI:
         print("\nDiscovering nodes and syncing data...")
         print("This may take 10-20 seconds...\n")
         
-        # Get nodedb to populate nodes
+        # Get nodedb to populate nodes with proper names
         try:
             if hasattr(self.interface, 'nodesByNum'):
                 for node_id, node_info in self.interface.nodesByNum.items():
+                    user_info = node_info.get('user', {})
+                    
+                    # Get the best available name
+                    long_name = user_info.get('longName', '')
+                    short_name = user_info.get('shortName', '')
+                    
+                    # Prefer long name, then short name, then fall back to ID
+                    if long_name:
+                        display_name = long_name
+                    elif short_name:
+                        display_name = short_name
+                    else:
+                        display_name = f"!{node_id:08x}"
+                    
+                    # Convert lastHeard timestamp if it exists
+                    last_seen = datetime.now()
+                    if node_info.get('lastHeard'):
+                        try:
+                            last_seen = datetime.fromtimestamp(node_info['lastHeard'])
+                        except:
+                            pass
+                    
                     self.nodes[node_id] = {
                         'id': node_id,
-                        'last_seen': datetime.fromtimestamp(node_info.get('lastHeard', 0)) if node_info.get('lastHeard') else datetime.now(),
-                        'name': node_info.get('user', {}).get('longName', f"!{node_id:08x}"),
-                        'short_id': f"!{node_id:08x}"
+                        'last_seen': last_seen,
+                        'name': display_name,
+                        'short_id': f"!{node_id:08x}",
+                        'long_name': long_name,
+                        'short_name': short_name
                     }
                 print(f"Loaded {len(self.nodes)} nodes from radio memory")
+                
+                if self.debug_mode:
+                    print("\n[DEBUG] Loaded nodes:")
+                    for node_id, node in list(self.nodes.items())[:5]:  # Show first 5 for debugging
+                        print(f"  {node['short_id']}: '{node['name']}' (long: '{node.get('long_name', '')}', short: '{node.get('short_name', '')}')")
         except Exception as e:
             if self.debug_mode:
                 print(f"Note: Could not load node database: {e}")
