@@ -26,8 +26,8 @@ class MeshtasticCLI:
 
     def __init__(self, debug_mode=False):
         self.interface = None
-        self.nodes = {}
-        self.messages = []
+        self.nodes = {}                 # node_id -> info dict
+        self.messages = []              # stored message history
         self.exit_flag = False
         self.selected_node = None
         self.debug_mode = debug_mode
@@ -80,6 +80,39 @@ class MeshtasticCLI:
         # execute ``finally`` blocks or other atexit handlers, which is exactly
         # what we want when background threads misbehave.
         os._exit(0)
+
+    # ------------------------------------------------------------------------
+    #  Helper – return a printable name for a node (friendly or short id)
+    # ------------------------------------------------------------------------
+    def _friendly_name(self, node_id: int) -> str:
+        """
+        Resolve a node id to a friendly name (if we have one) or the short
+        hex representation ``!deadbeef``.
+        """
+        node = self.nodes.get(node_id)
+        if node:
+            # If we already stored a proper name, use it; otherwise fall back to short id.
+            if node.get("name") and node["name"] != node.get("short_id"):
+                return node["name"]
+            return node["short_id"]
+
+        # Look directly at the library’s node table (may have the name already)
+        if hasattr(self.interface, "nodesByNum"):
+            nbyn = self.interface.nodesByNum
+            if node_id in nbyn:
+                user = nbyn[node_id].get("user", {})
+                name = user.get("longName") or user.get("shortName")
+                if name:
+                    return name
+
+        # If we have never seen this node, ask the mesh for its info.
+        try:
+            if hasattr(self.interface, "getRemoteNodeInfo"):
+                self.interface.getRemoteNodeInfo(node_id)
+        except Exception:
+            pass
+
+        return f"!{node_id:08x}"
 
     # ------------------------------------------------------------------------
     #  INTERACTION METHODS (unchanged apart from exiting via exit_program)
@@ -184,54 +217,70 @@ class MeshtasticCLI:
                 print(f"Connection failed: {e}")
                 return False
 
+    # ------------------------------------------------------------------------
+    #  CALLBACK – PROCESS INCOMING PACKETS
+    # ------------------------------------------------------------------------
     def on_receive(self, packet, interface=None):
         """Callback for received packets."""
         if self.debug_mode:
             print(f"\n[DEBUG] Packet received: {packet.keys() if isinstance(packet, dict) else type(packet)}")
 
         try:
-            # Store node info
+            # ------------------------------------------------------------
+            # 1️⃣  Keep our node table up‑to‑date (but *don’t* overwrite a
+            #     friendly name with a raw hex id)
+            # ------------------------------------------------------------
             if 'from' in packet:
                 node_id = packet['from']
                 node_short_id = f"!{node_id:08x}"
 
-                # Get the best available name
-                if 'fromId' in packet and packet['fromId']:
-                    node_name = packet['fromId']
+                # Gather the best name we can find right now
+                node_name_candidate = None
+                # a) fromId field (explicit friendly name)
+                if packet.get('fromId'):
+                    node_name_candidate = packet['fromId']
                 else:
-                    node_name = node_short_id
+                    # b) look at the library’s node database
                     if hasattr(self.interface, 'nodesByNum') and node_id in self.interface.nodesByNum:
-                        node_info = self.interface.nodesByNum[node_id]
-                        user_info = node_info.get('user', {})
-                        if 'longName' in user_info and user_info['longName']:
-                            node_name = user_info['longName']
-                        elif 'shortName' in user_info and user_info['shortName']:
-                            node_name = user_info['shortName']
+                        user = self.interface.nodesByNum[node_id].get('user', {})
+                        node_name_candidate = user.get('longName') or user.get('shortName')
 
+                # Update our local cache – preserve an existing friendly name
                 if node_id not in self.nodes:
                     self.nodes[node_id] = {
                         'id': node_id,
                         'last_seen': datetime.now(),
-                        'name': node_name,
+                        'name': node_name_candidate or node_short_id,
                         'short_id': node_short_id
                     }
                 else:
                     self.nodes[node_id]['last_seen'] = datetime.now()
-                    if 'fromId' in packet and packet['fromId']:
-                        self.nodes[node_id]['name'] = packet['fromId']
+                    # Replace the stored name *only* if we have a new friendly name
+                    if node_name_candidate and node_name_candidate != node_short_id:
+                        self.nodes[node_id]['name'] = node_name_candidate
 
-            # Store and display messages
+                # If we still only have a short id, ask the mesh for full info
+                if self.nodes[node_id]['name'] == node_short_id:
+                    try:
+                        if hasattr(self.interface, 'getRemoteNodeInfo'):
+                            self.interface.getRemoteNodeInfo(node_id)
+                    except Exception:
+                        pass
+
+            # ------------------------------------------------------------
+            # 2️⃣  Extract and display text messages
+            # ------------------------------------------------------------
             if 'decoded' in packet:
                 decoded = packet['decoded']
                 if self.debug_mode:
                     print(f"[DEBUG] Decoded packet: portnum={decoded.get('portnum')}, has text={('text' in decoded)}")
 
-                # Check if it's a text message
+                # Identify a text message (covers several API variations)
                 if (decoded.get('portnum') == 'TEXT_MESSAGE_APP' or
                     decoded.get('portnum') == 1 or
                     'text' in decoded):
 
-                    # Extract text – handle both string and bytes
+                    # ----------- extract the actual text -----------------
                     text_content = decoded.get('text', '')
                     if isinstance(text_content, bytes):
                         text_content = text_content.decode('utf-8', errors='ignore')
@@ -243,36 +292,49 @@ class MeshtasticCLI:
                             text_content = payload.get('text', '')
 
                     if text_content:
-                        from_name = packet.get('fromId', 'Unknown')
-                        from_short = f"!{packet.get('from', 0):08x}"
-                        to_name = packet.get('toId', 'Broadcast')
-                        to_short = (f"!{packet.get('to', 0):08x}"
-                                    if packet.get('to') != 0xffffffff else 'Broadcast')
+                        # ----------- resolve friendly names -----------------
+                        src_id = packet.get('from')
+                        src_name = self._friendly_name(src_id) if src_id is not None else "Unknown"
+                        src_short = f"!{src_id:08x}" if src_id is not None else "??"
 
+                        dst_raw = packet.get('to')
+                        if dst_raw is None or dst_raw == 0xffffffff:
+                            dst_name = "Broadcast"
+                            dst_short = "Broadcast"
+                        else:
+                            dst_name = self._friendly_name(dst_raw)
+                            dst_short = f"!{dst_raw:08x}"
+
+                        # ---------- store the message in history -------------
                         msg = {
-                            'from': from_name,
-                            'from_short': from_short,
-                            'to': to_name,
-                            'to_short': to_short,
+                            'from': src_name,
+                            'from_short': src_short,
+                            'to': dst_name,
+                            'to_short': dst_short,
                             'text': text_content,
                             'time': datetime.now()
                         }
                         self.messages.append(msg)
-                        # Print new messages in real‑time
+
+                        # ---------- live display if we are in the chat UI ---
                         if self.current_mode == "messaging":
                             time_str = msg['time'].strftime('%Y-%m-%d %H:%M:%S')
                             print(f"\n[{time_str}] {msg['from']} ({msg['from_short']}) -> "
                                   f"{msg['to']} ({msg['to_short']}): {msg['text']}")
                             print("> ", end='', flush=True)
+
         except Exception as e:
             if self.debug_mode:
                 print(f"[DEBUG] Error processing packet: {e}")
 
+    # ------------------------------------------------------------------------
+    #  UI HELPERS
+    # ------------------------------------------------------------------------
     def list_recent_nodes(self):
         """List nodes seen in the last hour."""
         one_hour_ago = datetime.now() - timedelta(hours=1)
         recent_nodes = {k: v for k, v in self.nodes.items()
-                       if v['last_seen'] > one_hour_ago}
+                        if v['last_seen'] > one_hour_ago}
 
         if not recent_nodes:
             print("\nNo nodes detected in the last hour.")
