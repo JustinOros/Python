@@ -117,7 +117,7 @@ class MeshtasticCLI:
         """Prompt user to select and connect to a radio"""
         while True:
             try:
-                choice = input("\nEnter number to connect (or 'q' to quit, 'r' to refresh): ").strip()
+                choice = input("\nEnter number to connect ('r' to retry, 'q' to quit): ").strip()
                 if choice.lower() == 'q':
                     sys.exit(0)
                 elif choice.lower() == 'r':
@@ -230,7 +230,7 @@ class MeshtasticCLI:
                         self.messages.append(msg)
                         # Print new messages in real-time
                         if self.current_mode == "messaging":
-                            time_str = msg['time'].strftime('%Y-%m-%d %H:%M:%S')
+                            time_str = msg['time'].strftime('%Y-%m-d %H:%M:%S')
                             print(f"\n[{time_str}] {msg['from']} ({msg['from_short']}) -> {msg['to']} ({msg['to_short']}): {msg['text']}")
                             print("> ", end='', flush=True)
         except Exception as e:
@@ -266,9 +266,12 @@ class MeshtasticCLI:
         """Prompt user to select a contact"""
         while True:
             try:
-                choice = input("\nEnter number to message (or 'b' for broadcast, 'r' to refresh): ").strip()
+                choice = input("\nEnter number to message ('r' to refresh, 'b' for broadcast, 'q' to quit): ").strip()
                 
-                if choice.lower() == 'b':
+                if choice.lower() == 'q':
+                    self.exit_program()
+                    return False
+                elif choice.lower() == 'b':
                     self.selected_node = None
                     print("Broadcasting to all nodes")
                     return True
