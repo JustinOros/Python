@@ -19,6 +19,7 @@ import re
 import threading
 import tempfile
 import shutil
+import ssl
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List
 from datetime import datetime
@@ -33,6 +34,7 @@ class MoneroMiner:
         self.stats_thread = None
         self.stop_stats = False
         self.has_nvidia_gpu = False
+        self.ssl_context = self.setup_ssl_context()
         
         # Known mining pools (with minimum payout amounts)
         self.known_pools = [
@@ -43,9 +45,24 @@ class MoneroMiner:
             {"name": "HeroMiners", "address": "monero.herominers.com:1111", "tls": False, "coin": "XMR", "min_payout": "0.1 XMR"},
             {"name": "C3Pool", "address": "mine.c3pool.com:13333", "tls": False, "coin": None, "min_payout": "0.001 XMR", "no_api": True},
         ]
+    
+    def setup_ssl_context(self):
+        # Setup SSL context with proper certificates for macOS
+        try:
+            import certifi
+            # Create SSL context with certifi certificates
+            context = ssl.create_default_context(cafile=certifi.where())
+            return context
+        except ImportError:
+            # Fallback: use default SSL context
+            try:
+                return ssl.create_default_context()
+            except:
+                # Last resort: unverified context (not recommended but works)
+                return ssl._create_unverified_context()
         
     def detect_os(self) -> str:
-        """Detect the operating system"""
+        # Detect the operating system
         system = platform.system()
         if system == 'Darwin':
             return 'macos'
@@ -57,7 +74,7 @@ class MoneroMiner:
             return 'unknown'
     
     def detect_cpu_arch(self) -> str:
-        """Detect CPU architecture"""
+        # Detect CPU architecture
         machine = platform.machine().lower()
         if machine in ['arm64', 'aarch64']:
             return 'arm64'
@@ -69,7 +86,7 @@ class MoneroMiner:
             return machine
     
     def detect_cpu_model(self) -> str:
-        """Detect the specific CPU model for worker naming"""
+        # Detect the specific CPU model for worker naming
         try:
             system = platform.system()
             
@@ -146,7 +163,7 @@ class MoneroMiner:
         return "arm64" if arch == 'arm64' else "x64"
     
     def detect_nvidia_gpu(self) -> bool:
-        """Detect if an NVIDIA GPU is present"""
+        # Detect if an NVIDIA GPU is present
         os_type = self.detect_os()
         
         try:
@@ -185,13 +202,13 @@ class MoneroMiner:
         return False
     
     def get_latest_xmrig_release(self) -> Optional[Tuple[str, list]]:
-        """Fetch the latest XMRig version and available files from GitHub"""
+        # Fetch the latest XMRig version and available files from GitHub
         try:
             url = "https://api.github.com/repos/xmrig/xmrig/releases/latest"
             req = urllib.request.Request(url)
             req.add_header('User-Agent', 'Mozilla/5.0')
             
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10, context=self.ssl_context) as response:
                 data = json.loads(response.read().decode())
                 version = data['tag_name'].lstrip('v')
                 
@@ -204,13 +221,13 @@ class MoneroMiner:
             return None
     
     def get_latest_gminer_release(self) -> Optional[Tuple[str, List[dict]]]:
-        """Fetch the latest GMiner version and available files from GitHub"""
+        # Fetch the latest GMiner version and available files from GitHub
         try:
             url = "https://api.github.com/repos/develsoftware/GMinerRelease/releases/latest"
             req = urllib.request.Request(url)
             req.add_header('User-Agent', 'Mozilla/5.0')
             
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10, context=self.ssl_context) as response:
                 data = json.loads(response.read().decode())
                 version = data['tag_name'].lstrip('v')
                 
@@ -228,7 +245,7 @@ class MoneroMiner:
             return None
     
     def find_matching_file(self, assets: list, os_type: str, arch: str) -> Optional[str]:
-        """Find the matching file for the given OS and architecture"""
+        # Find the matching file for the given OS and architecture
         # Build search patterns based on OS and architecture
         if os_type == 'macos':
             if arch == 'arm64':
@@ -263,7 +280,7 @@ class MoneroMiner:
         return None
     
     def find_matching_gminer_file(self, assets: List[dict], os_type: str) -> Optional[dict]:
-        """Find the matching GMiner file for the given OS"""
+        # Find the matching GMiner file for the given OS
         for asset in assets:
             name = asset['name'].lower()
             if os_type == 'windows' and 'windows' in name and name.endswith('.zip'):
@@ -273,7 +290,7 @@ class MoneroMiner:
         return None
     
     def check_xmrig_installed(self) -> bool:
-        """Check if xmrig is installed"""
+        # Check if xmrig is installed
         # Check in script directory first
         local_paths = [
             os.path.join(self.script_dir, 'xmrig'),
@@ -310,7 +327,7 @@ class MoneroMiner:
         return False
     
     def check_gminer_installed(self) -> bool:
-        """Check if GMiner is installed in script directory"""
+        # Check if GMiner is installed in script directory
         os_type = self.detect_os()
         
         if os_type == 'windows':
@@ -321,14 +338,14 @@ class MoneroMiner:
         return os.path.exists(gminer_path) and os.access(gminer_path, os.X_OK if os.name != 'nt' else os.F_OK)
     
     def download_file_with_progress(self, url: str, local_filename: str, max_retries: int = 3) -> bool:
-        """Download a file with progress indication and retry logic"""
+        # Download a file with progress indication and retry logic
         for attempt in range(max_retries):
             try:
                 req = urllib.request.Request(url)
                 req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36')
                 req.add_header('Accept', '*/*')
                 
-                with urllib.request.urlopen(req, timeout=30) as response:
+                with urllib.request.urlopen(req, timeout=30, context=self.ssl_context) as response:
                     total_size = int(response.headers.get('Content-Length', 0))
                     downloaded = 0
                     
@@ -365,7 +382,7 @@ class MoneroMiner:
         return False
     
     def download_and_install_xmrig(self) -> bool:
-        """Download and install XMRig based on OS and architecture"""
+        # Download and install XMRig based on OS and architecture
         os_type = self.detect_os()
         arch = self.detect_cpu_arch()
         
@@ -551,7 +568,7 @@ class MoneroMiner:
             return False
     
     def download_and_install_gminer(self) -> bool:
-        """Download and install GMiner for GPU mining"""
+        # Download and install GMiner for GPU mining
         os_type = self.detect_os()
         
         # GMiner only supports Windows and Linux
@@ -671,7 +688,7 @@ class MoneroMiner:
             return False
     
     def prompt_wallet_address(self) -> str:
-        """Prompt user for wallet address"""
+        # Prompt user for wallet address
         default_wallet = "85NGrygcwq36kjLaNKZevT53H4EeHRQYeje5Y3gq3GYkKsEpwKpGjqd1tGxAVEjDfxEha6SYtyNYPbmPXduYqy47Q6JwbuW"
         
         print("\n" + "="*60)
@@ -692,7 +709,7 @@ class MoneroMiner:
         return wallet
     
     def prompt_pool_selection(self) -> Tuple[str, bool, Optional[str]]:
-        """Prompt user to select a mining pool"""
+        # Prompt user to select a mining pool
         print("\n" + "="*60)
         print("Mining Pool Selection")
         print("="*60)
@@ -748,7 +765,7 @@ class MoneroMiner:
                 print("Please enter a valid number or press ENTER for default")
     
     def check_windows_admin(self) -> bool:
-        """Check if script is running with Administrator privileges on Windows"""
+        # Check if script is running with Administrator privileges on Windows
         try:
             import ctypes
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
@@ -756,7 +773,7 @@ class MoneroMiner:
             return False
     
     def prompt_msr_mod(self, os_type: str) -> bool:
-        """Prompt user to enable MSR MOD for performance optimization"""
+        # Prompt user to enable MSR MOD for performance optimization
         # MSR MOD is only supported on Windows and Linux
         if os_type not in ['windows', 'linux']:
             return False
@@ -806,7 +823,7 @@ class MoneroMiner:
             return False
     
     def setup_linux_msr(self):
-        """Setup MSR kernel module on Linux"""
+        # Setup MSR kernel module on Linux
         try:
             # Check if msr module is loaded
             result = subprocess.run(['lsmod'], capture_output=True, text=True)
@@ -841,7 +858,7 @@ class MoneroMiner:
             print("  2. Start miner with: sudo python3 miner-monero.py")
     
     def prompt_gpu_mining(self) -> bool:
-        """Prompt user to enable GPU mining if NVIDIA GPU is detected"""
+        # Prompt user to enable GPU mining if NVIDIA GPU is detected
         print("\n" + "="*60)
         print("GPU Mining Configuration")
         print("="*60)
@@ -866,7 +883,7 @@ class MoneroMiner:
             return False
     
     def setup_initial_config(self):
-        """Setup initial configuration with user input"""
+        # Setup initial configuration with user input
         os_type = self.detect_os()
         arch = self.detect_cpu_arch()
         is_mac = os_type == 'macos'
@@ -930,7 +947,7 @@ class MoneroMiner:
         return config
         
     def load_config(self) -> Dict:
-        """Load configuration from JSON file"""
+        # Load configuration from JSON file
         if not os.path.exists(self.config_file):
             print(f"Configuration file '{self.config_file}' not found.")
             print("Setting up initial configuration...")
@@ -949,7 +966,7 @@ class MoneroMiner:
             sys.exit(1)
     
     def validate_config(self, config: Dict):
-        """Validate required configuration fields"""
+        # Validate required configuration fields
         required_fields = ['wallet_address', 'mining_mode']
         
         for field in required_fields:
@@ -963,7 +980,7 @@ class MoneroMiner:
             raise ValueError("pool_address is required for pool mining")
     
     def is_supportxmr_pool(self) -> bool:
-        """Check if the configured pool is SupportXMR"""
+        # Check if the configured pool is SupportXMR
         if self.config['mining_mode'] != 'pool':
             return False
         
@@ -971,7 +988,7 @@ class MoneroMiner:
         return 'supportxmr.com' in pool_addr
     
     def is_moneroocean_pool(self) -> bool:
-        """Check if the configured pool is MoneroOcean"""
+        # Check if the configured pool is MoneroOcean
         if self.config['mining_mode'] != 'pool':
             return False
         
@@ -979,7 +996,7 @@ class MoneroMiner:
         return 'moneroocean' in pool_addr
     
     def is_nanopool_pool(self) -> bool:
-        """Check if the configured pool is NanoPool"""
+        # Check if the configured pool is NanoPool
         if self.config['mining_mode'] != 'pool':
             return False
         
@@ -987,7 +1004,7 @@ class MoneroMiner:
         return 'nanopool' in pool_addr
     
     def is_hashvault_pool(self) -> bool:
-        """Check if the configured pool is HashVault"""
+        # Check if the configured pool is HashVault
         if self.config['mining_mode'] != 'pool':
             return False
         
@@ -995,7 +1012,7 @@ class MoneroMiner:
         return 'hashvault' in pool_addr
     
     def is_herominers_pool(self) -> bool:
-        """Check if the configured pool is HeroMiners"""
+        # Check if the configured pool is HeroMiners
         if self.config['mining_mode'] != 'pool':
             return False
         
@@ -1003,7 +1020,7 @@ class MoneroMiner:
         return 'herominers' in pool_addr
     
     def fetch_pool_stats(self) -> Optional[Dict]:
-        """Fetch mining statistics from pool API"""
+        # Fetch mining statistics from pool API
         try:
             wallet = self.config['wallet_address']
             
@@ -1023,7 +1040,7 @@ class MoneroMiner:
             req = urllib.request.Request(url)
             req.add_header('User-Agent', 'Mozilla/5.0')
             
-            with urllib.request.urlopen(req, timeout=10) as response:
+            with urllib.request.urlopen(req, timeout=10, context=self.ssl_context) as response:
                 data = json.loads(response.read().decode())
                 
                 # NanoPool wraps data differently
@@ -1064,7 +1081,7 @@ class MoneroMiner:
             return None
     
     def format_hashrate(self, hash_rate: float) -> str:
-        """Format hash rate in human-readable format"""
+        # Format hash rate in human-readable format
         if hash_rate >= 1000000:
             return f"{hash_rate / 1000000:.2f} MH/s"
         elif hash_rate >= 1000:
@@ -1073,12 +1090,12 @@ class MoneroMiner:
             return f"{hash_rate:.2f} H/s"
     
     def format_xmr(self, piconero: int) -> str:
-        """Convert piconero to XMR"""
+        # Convert piconero to XMR
         xmr = piconero / 1000000000000
         return f"{xmr:.12f} XMR"
     
     def format_time_ago(self, timestamp: int) -> str:
-        """Format timestamp as time ago"""
+        # Format timestamp as time ago
         now = int(time.time())
         diff = now - timestamp
         
@@ -1092,7 +1109,7 @@ class MoneroMiner:
             return f"{diff // 86400} days ago"
     
     def display_pool_stats(self, stats: Dict):
-        """Display pool statistics in a readable format"""
+        # Display pool statistics in a readable format
         print("\n" + "="*60)
         print(f"Pool Statistics - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("="*60)
@@ -1246,7 +1263,7 @@ class MoneroMiner:
         print("="*60 + "\n")
     
     def stats_monitor_thread(self):
-        """Background thread to periodically fetch and display pool stats"""
+        # Background thread to periodically fetch and display pool stats
         interval = self.config.get('stats_update_interval', 300)
         
         # Display stats immediately
@@ -1274,7 +1291,7 @@ class MoneroMiner:
                 self.display_pool_stats(stats)
     
     def start_stats_monitor(self):
-        """Start the stats monitoring thread"""
+        # Start the stats monitoring thread
         if not self.is_supportxmr_pool() and not self.is_moneroocean_pool() and not self.is_nanopool_pool() and not self.is_hashvault_pool() and not self.is_herominers_pool():
             return
         
@@ -1298,13 +1315,13 @@ class MoneroMiner:
         self.stats_thread.start()
     
     def stop_stats_monitor(self):
-        """Stop the stats monitoring thread"""
+        # Stop the stats monitoring thread
         if self.stats_thread:
             self.stop_stats = True
             self.stats_thread.join(timeout=2)
     
     def initialize(self):
-        """Initialize the miner - check for xmrig and setup config"""
+        # Initialize the miner - check for xmrig and setup config
         # Check for NVIDIA GPU first
         print("\nChecking for NVIDIA GPU...")
         self.has_nvidia_gpu = self.detect_nvidia_gpu()
@@ -1382,7 +1399,7 @@ class MoneroMiner:
                             self.config['gpu_mining'] = False
     
     def build_command(self) -> list:
-        """Build the XMRig mining command based on configuration"""
+        # Build the XMRig mining command based on configuration
         cmd = [self.config.get('miner_executable', 'xmrig')]
         
         # Add wallet address
@@ -1468,7 +1485,7 @@ class MoneroMiner:
         return cmd
     
     def build_gminer_command(self) -> list:
-        """Build the GMiner command for GPU mining"""
+        # Build the GMiner command for GPU mining
         os_type = self.detect_os()
         
         if os_type == 'windows':
@@ -1493,7 +1510,7 @@ class MoneroMiner:
         return cmd
     
     def start_gpu_mining(self):
-        """Start the GPU mining process with GMiner"""
+        # Start the GPU mining process with GMiner
         if not self.config.get('gpu_mining', False):
             return
         
@@ -1538,7 +1555,7 @@ class MoneroMiner:
             print(f"Error starting GPU miner: {e}")
     
     def stop_gpu_mining(self):
-        """Stop the GPU mining process"""
+        # Stop the GPU mining process
         if self.gpu_process:
             print("Stopping GPU miner...")
             self.gpu_process.terminate()
@@ -1550,7 +1567,7 @@ class MoneroMiner:
             print("GPU miner stopped.")
     
     def start_mining(self):
-        """Start the mining process"""
+        # Start the mining process
         cmd = self.build_command()
         
         # Check if MSR is enabled but not running with proper privileges
@@ -1646,7 +1663,7 @@ class MoneroMiner:
             self.stop_gpu_mining()
     
     def stop_mining(self):
-        """Stop the mining process"""
+        # Stop the mining process
         self.stop_stats_monitor()
         self.stop_gpu_mining()
         
@@ -1661,14 +1678,14 @@ class MoneroMiner:
             print("CPU miner stopped.")
     
     def show_stats(self):
-        """Display mining statistics if API is enabled"""
+        # Display mining statistics if API is enabled
         api_port = self.config.get('api_port', 0)
         if api_port > 0:
             print(f"\nMining stats available at: http://127.0.0.1:{api_port}")
             print("You can view real-time statistics in your browser")
 
 def signal_handler(signum, frame):
-    """Handle interrupt signals"""
+    # Handle interrupt signals
     print("\n\nShutdown signal received...")
     sys.exit(0)
 
