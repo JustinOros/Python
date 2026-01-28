@@ -520,7 +520,7 @@ def advanced_backtest_strategy():
                            end=end_date.strftime('%Y-%m-%d')).df
         if len(bars) < 100:
             logger.warning("⚠️  Insufficient data for backtest")
-            return True
+            return
         
         closes = bars['close']
         highs = bars['high']
@@ -698,11 +698,12 @@ def advanced_backtest_strategy():
         if profit_factor < 1.3:
             logger.warning("⚠️  Profit factor < 1.3")
             
-        return True
-        
     except Exception as e:
-        logger.warning(f"⚠️  Backtest failed: {e}")
-        return True
+        error_msg = str(e).lower()
+        if 'subscription' in error_msg or 'permit' in error_msg:
+            logger.warning(f"⚠️  Backtest unavailable: Your subscription doesn't permit historical data access")
+        else:
+            logger.warning(f"⚠️  Backtest failed: {e}")
 
 def advanced_signal_generator(symbol):
     # Advanced signal generation with ALL filters
@@ -1368,10 +1369,12 @@ def main():
         
         return
     
-    # Run backtest once at startup
-    if not advanced_backtest_strategy():
-        logger.error("❌  Backtest failed. Exiting...")
-        return
+    # Run backtest once at startup (optional - continues if it fails)
+    try:
+        advanced_backtest_strategy()
+    except Exception as e:
+        logger.warning(f"⚠️  Backtest skipped: {e}")
+        logger.info(f"ℹ️  Continuing without backtest - this is optional")
     
     # Track daily state
     last_reset_date = None
