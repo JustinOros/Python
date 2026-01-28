@@ -6,6 +6,12 @@ This repository contains a variety of Python scripts ranging from command-line u
 
 ## Utilities
 
+### `daytrader.py`  
+**Description:** Automated Day Trading with Alpaca API.
+```bash
+python3 daytrader.py
+```
+
 ### `stats-distributed-net.py`  
 **Description:** Search User or Team statistic data from stats.distributed.net.
 ```bash
