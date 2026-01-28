@@ -515,8 +515,9 @@ def advanced_backtest_strategy():
         end_date = datetime.now()
         start_date = end_date - timedelta(days=BACKTEST_DAYS)
         
-        bars = api.get_bars(SYMBOL, "15Min", start=start_date.isoformat(), 
-                           end=end_date.isoformat()).df
+        # Format dates as YYYY-MM-DD for Alpaca API
+        bars = api.get_bars(SYMBOL, "15Min", start=start_date.strftime('%Y-%m-%d'), 
+                           end=end_date.strftime('%Y-%m-%d')).df
         if len(bars) < 100:
             logger.warning("⚠️  Insufficient data for backtest")
             return True
