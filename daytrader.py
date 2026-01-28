@@ -903,7 +903,13 @@ def advanced_signal_generator(symbol):
 
 def wait_until_market_open():
     # Wait until the market opens
-    clock = api.get_clock()
+    try:
+        clock = api.get_clock()
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to get clock: {e}")
+        time.sleep(60)
+        return
+    
     now = clock.timestamp
     next_open = clock.next_open
     
@@ -949,7 +955,7 @@ def get_day_trade_count():
     # Get the current day trade count
     try:
         account = api.get_account()
-        return int(account.day_trade_count)
+        return int(account.daytrade_count)
     except Exception as e:
         logger.error(f"❌  Failed to fetch day trade count: {e}")
         return 0
@@ -1138,17 +1144,26 @@ def pdt_allows_new_trade():
 
 def get_market_status():
     # Get current market status
-    clock = api.get_clock()
-    status = "open" if clock.is_open else "closed"
-    next_event = clock.next_open if not clock.is_open else clock.next_close
-    event_type = "open" if not clock.is_open else "close"
-    
-    return {
-        "status": status,
-        "next_event": next_event,
-        "event_type": event_type,
-        "timestamp": clock.timestamp
-    }
+    try:
+        clock = api.get_clock()
+        status = "open" if clock.is_open else "closed"
+        next_event = clock.next_open if not clock.is_open else clock.next_close
+        event_type = "open" if not clock.is_open else "close"
+        
+        return {
+            "status": status,
+            "next_event": next_event,
+            "event_type": event_type,
+            "timestamp": clock.timestamp
+        }
+    except Exception as e:
+        logger.warning(f"⚠️  Failed to get market status: {e}")
+        return {
+            "status": "unknown",
+            "next_event": None,
+            "event_type": "unknown",
+            "timestamp": datetime.now()
+        }
 
 def calculate_position_size(equity, stop_loss, entry_price, regime='normal'):
     # Calculate position size based on fixed risk per trade
@@ -1392,10 +1407,15 @@ def main():
                 # Trading session loop
                 while True:
                     # Check market still open
-                    clock = api.get_clock()
-                    if not clock.is_open:
-                        logger.info("❌  Market closed")
-                        break
+                    try:
+                        clock = api.get_clock()
+                        if not clock.is_open:
+                            logger.info("❌  Market closed")
+                            break
+                    except Exception as e:
+                        logger.warning(f"⚠️  Clock check failed: {e}")
+                        time.sleep(60)
+                        continue
                     
                     # Check day changed
                     if datetime.now().date() != current_date:
@@ -1528,7 +1548,11 @@ def main():
                     
                     # Status display
                     position_status = f"{position_type.upper()}" if position_active else "FLAT"
-                    current_time = clock.timestamp.strftime("%I:%M:%S %p")
+                    try:
+                        current_time = clock.timestamp.strftime("%I:%M:%S %p")
+                    except:
+                        current_time = datetime.now().strftime("%I:%M:%S %p")
+                    
                     hourly_trend = check_multiframe_confluence(SYMBOL)
                     
                     status_msg = f"⏱️  {current_time} | {position_status} | {regime.upper()}"
