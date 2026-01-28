@@ -1332,6 +1332,35 @@ def main():
     # Main trading function - runs continuously 24/7
     logger.info("🚀  Starting daytrader.py - continuous operation")
     
+    # Validate API connectivity and credentials
+    logger.info("🔍  Validating API connectivity...")
+    try:
+        account = api.get_account()
+        logger.info(f"✅  API connected successfully")
+        logger.info(f"✅  Account ID: {account.id}")
+        logger.info(f"✅  Equity: ${float(account.equity):.2f}")
+        logger.info(f"✅  Buying Power: ${float(account.buying_power):.2f}")
+        logger.info(f"✅  Day Trade Count: {int(account.daytrade_count)}")
+        logger.info(f"✅  Pattern Day Trader: {account.pattern_day_trader}")
+        
+        # Test market data access
+        test_bars = api.get_bars(SYMBOL, "1Day", limit=1).df
+        if len(test_bars) > 0:
+            logger.info(f"✅  Market data access verified for {SYMBOL}")
+        else:
+            logger.warning(f"⚠️  No market data returned for {SYMBOL}")
+        
+        # Test clock access
+        clock = api.get_clock()
+        logger.info(f"✅  Clock access verified - Market is {'OPEN' if clock.is_open else 'CLOSED'}")
+        
+    except Exception as e:
+        logger.error(f"❌  API validation failed: {e}")
+        logger.error("    Please check your API credentials in .env file")
+        import traceback
+        logger.error(traceback.format_exc())
+        return
+    
     # Run backtest once at startup
     if not advanced_backtest_strategy():
         logger.error("❌  Backtest failed. Exiting...")
