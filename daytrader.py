@@ -1356,10 +1356,16 @@ def main():
         logger.info(f"✅  Clock access verified - Market is {'OPEN' if clock.is_open else 'CLOSED'}")
         
     except Exception as e:
-        logger.error(f"❌  API validation failed: {e}")
-        logger.error("    Please check your API credentials in .env file")
-        import traceback
-        logger.error(traceback.format_exc())
+        error_msg = str(e).lower()
+        logger.error(f"❌  API validation failed")
+        
+        if 'unauthorized' in error_msg or 'forbidden' in error_msg:
+            logger.error(f"🔑  Invalid API credentials detected")
+            logger.error(f"Please update your .env file with valid API keys")
+        else:
+            logger.error(f"Error: {e}")
+            logger.error(f"Please check your .env file and network connection")
+        
         return
     
     # Run backtest once at startup
