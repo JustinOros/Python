@@ -520,7 +520,11 @@ def seconds_to_human_readable(seconds):
     return " ".join(time_parts) if time_parts else "0 seconds"
 
 def format_market_time(dt_obj):
-    return dt_obj.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+    eastern_time = dt_obj.strftime("%Y-%m-%d %I:%M:%S %p %Z")
+    if hasattr(dt_obj, 'to_pydatetime'):
+        dt_obj = dt_obj.to_pydatetime()
+    local_time = dt_obj.astimezone().strftime("%I:%M%p").lstrip('0')
+    return f"{eastern_time} ({local_time} local)"
 
 def apply_slippage(price, is_buy=True):
     debug_print(f"Applying slippage to price={price:.2f}, is_buy={is_buy}")
@@ -1853,3 +1857,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
