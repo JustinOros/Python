@@ -23,6 +23,7 @@ ENV_PATH = SCRIPT_DIR / ".env"
 DEFAULT_CONFIG = {
     "DEBUG_MODE": True,
     "SYMBOL": "SPY",
+    "BAR_TIMEFRAME": "5Min",
     "RISK_PER_TRADE": 0.005,
     "SHORT_WINDOW": 20,
     "LONG_WINDOW": 50,
@@ -86,6 +87,7 @@ else:
 
 DEBUG_MODE = bool(config.get("DEBUG_MODE", False))
 SYMBOL = config["SYMBOL"]
+BAR_TIMEFRAME = config.get("BAR_TIMEFRAME", "5Min")
 RISK_PER_TRADE = float(config["RISK_PER_TRADE"])
 SHORT_WINDOW = int(config["SHORT_WINDOW"])
 LONG_WINDOW = int(config["LONG_WINDOW"])
@@ -536,6 +538,7 @@ def apply_slippage(price, is_buy=True):
     
     debug_print(f"Adjusted price: {adjusted_price:.2f}")
     return adjusted_price
+
 def advanced_backtest_strategy():
     logger.info("📊 Running advanced backtest with all filters...")
     debug_print("=== STARTING BACKTEST ===")
@@ -545,9 +548,9 @@ def advanced_backtest_strategy():
         start_date = end_date - timedelta(days=BACKTEST_DAYS)
         
         debug_print(f"Backtest period: {start_date.date()} to {end_date.date()}")
-        debug_print(f"Fetching {BACKTEST_DAYS} days of 15min bars for {SYMBOL}...")
+        debug_print(f"Fetching {BACKTEST_DAYS} days of {BAR_TIMEFRAME} bars for {SYMBOL}...")
         
-        bars = api.get_bars(SYMBOL, "15Min", start=start_date.strftime('%Y-%m-%d'), 
+        bars = api.get_bars(SYMBOL, BAR_TIMEFRAME, start=start_date.strftime('%Y-%m-%d'), 
                            end=end_date.strftime('%Y-%m-%d')).df
         debug_print(f"Received {len(bars)} bars")
         
@@ -1260,10 +1263,9 @@ def close_all_positions():
         debug_print(f"Failed to close positions: {e}")
 
 def get_recent_bars(symbol, limit=100):
-    debug_print(f"Fetching {limit} recent bars for {symbol}...")
+    debug_print(f"Fetching {limit} recent {BAR_TIMEFRAME} bars for {symbol}...")
     try:
-        timeframe = "15Min"
-        bars = api.get_bars(symbol, timeframe, limit=limit).df
+        bars = api.get_bars(symbol, BAR_TIMEFRAME, limit=limit).df
         debug_print(f"Received {len(bars)} bars")
         return bars
     except Exception as e:
@@ -1523,6 +1525,7 @@ def get_bid_ask(symbol):
         debug_print(f"Failed to get bid/ask: {e}, using current price")
         current_price = get_current_price(symbol)
         return current_price, current_price
+
 def main():
     logger.info("🚀  Starting daytrader.py - continuous operation")
     if DEBUG_MODE:
