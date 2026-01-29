@@ -406,8 +406,8 @@ def get_vix_level():
             debug_print(f"VIX from data: {vix:.2f}")
             return vix
         else:
-            debug_print("No VIX data, estimating from SPY volatility...")
-            spy_bars = api.get_bars("SPY", "1Day", limit=20).df
+            debug_print(f"No VIX data, estimating from {SYMBOL} volatility...")
+            spy_bars = api.get_bars(SYMBOL, "1Day", limit=20).df
             if len(spy_bars) >= 20:
                 spy_returns = spy_bars['close'].pct_change()
                 volatility = spy_returns.std() * np.sqrt(252) * 100
