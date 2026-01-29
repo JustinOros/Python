@@ -1805,9 +1805,9 @@ def main():
                     
                     position_status = f"{position_type.upper()}" if position_active else "FLAT"
                     try:
-                        current_time = clock.timestamp.strftime("%I:%M:%S %p")
+                        current_time = clock.timestamp.strftime("%I:%M:%S %p ET")
                     except:
-                        current_time = datetime.now().strftime("%I:%M:%S %p")
+                        current_time = datetime.now().strftime("%I:%M:%S %p ET")
                     
                     hourly_trend = check_multiframe_confluence(SYMBOL)
                     
