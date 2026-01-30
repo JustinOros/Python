@@ -12,6 +12,7 @@ import json
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import pytz
 from pathlib import Path
 from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
@@ -127,6 +128,8 @@ USE_200_SMA_FILTER = bool(config["USE_200_SMA_FILTER"])
 REQUIRE_MACD_CONFIRMATION = bool(config["REQUIRE_MACD_CONFIRMATION"])
 MIN_RISK_REWARD = float(config["MIN_RISK_REWARD"])
 PULLBACK_PERCENTAGE = float(config["PULLBACK_PERCENTAGE"])
+
+EASTERN = pytz.timezone('US/Eastern')
 
 api = tradeapi.REST(
     os.getenv('APCA_API_KEY_ID'),
@@ -493,7 +496,7 @@ def should_skip_trading_day():
         return False
     
     today = datetime.now().weekday()
-    day_name = datetime.now().strftime("%A")
+    day_name = datetime.now(EASTERN).strftime("%A")
     if today == 0 or today == 4:
         debug_print(f"Skipping {day_name} (skip_mondays_fridays enabled)")
         return True
@@ -520,9 +523,15 @@ def seconds_to_human_readable(seconds):
     return " ".join(time_parts) if time_parts else "0 seconds"
 
 def format_market_time(dt_obj):
-    eastern_time = dt_obj.strftime("%Y-%m-%d %I:%M:%S %p %Z")
     if hasattr(dt_obj, 'to_pydatetime'):
         dt_obj = dt_obj.to_pydatetime()
+    
+    if dt_obj.tzinfo is None:
+        dt_obj = EASTERN.localize(dt_obj)
+    elif dt_obj.tzinfo != EASTERN:
+        dt_obj = dt_obj.astimezone(EASTERN)
+    
+    eastern_time = dt_obj.strftime("%Y-%m-%d %I:%M:%S %p %Z")
     local_time = dt_obj.astimezone().strftime("%I:%M%p").lstrip('0')
     return f"{eastern_time} ({local_time} local)"
 
@@ -1020,11 +1029,21 @@ def wait_until_market_open():
         return
     
     now = clock.timestamp
+    if now.tzinfo is None:
+        now = EASTERN.localize(now)
+    else:
+        now = now.astimezone(EASTERN)
+    
     next_open = clock.next_open
+    if next_open.tzinfo is None:
+        next_open = EASTERN.localize(next_open)
+    else:
+        next_open = next_open.astimezone(EASTERN)
     
     if not clock.is_open:
         seconds_until_open = (next_open - now).total_seconds()
-        debug_print(f"Market closed, {seconds_until_open:.0f} seconds until open")
+        readable_time = seconds_to_human_readable(seconds_until_open)
+        debug_print(f"Market closed, {readable_time} until open")
         if seconds_until_open > 0:
             readable_time = seconds_to_human_readable(seconds_until_open)
             logger.info(f"🕒  Market opens at {format_market_time(next_open)}")
@@ -1035,7 +1054,7 @@ def wait_until_market_open():
                 time.sleep(sleep_time)
                 seconds_until_open -= sleep_time
                 
-                if sleep_time >= 60:
+                if sleep_time >= 60 and (seconds_until_open % 3600 < 60 or seconds_until_open < 3600):
                     remaining_readable = seconds_to_human_readable(seconds_until_open)
                     logger.info(f"⏱️  {remaining_readable} remaining...")
                     debug_print(f"Waiting... {remaining_readable} remaining")
@@ -1367,20 +1386,20 @@ def should_trade_based_on_market_hours():
     if not MARKET_HOURS_FILTER:
         debug_print("Market hours filter disabled")
         return True
-        
-    now = datetime.now().time()
+    
+    now_eastern = datetime.now(EASTERN).time()
     
     open_buffer_end = datetime.strptime("10:00", "%H:%M").time()
     close_buffer_start = datetime.strptime("15:30", "%H:%M").time()
     
-    debug_print(f"Current time: {now}")
+    debug_print(f"Current time (ET): {now_eastern}")
     
-    if now < open_buffer_end:
-        debug_print("Before 10:00 AM, outside trading hours")
+    if now_eastern < open_buffer_end:
+        debug_print("Before 10:00 AM ET, outside trading hours")
         return False
     
-    if now >= close_buffer_start:
-        debug_print("After 3:30 PM, outside trading hours")
+    if now_eastern >= close_buffer_start:
+        debug_print("After 3:30 PM ET, outside trading hours")
         return False
     
     debug_print("Within trading hours")
@@ -1593,7 +1612,7 @@ def main():
         while True:
             debug_print("=== NEW MAIN LOOP ITERATION ===")
             try:
-                current_date = datetime.now().date()
+                current_date = datetime.now(EASTERN).date()
                 if last_reset_date != current_date:
                     trades_today = 0
                     last_reset_date = current_date
@@ -1608,7 +1627,7 @@ def main():
                         debug_print("Reset trailing_stop attribute")
                 
                 if should_skip_trading_day():
-                    day_name = datetime.now().strftime("%A")
+                    day_name = datetime.now(EASTERN).strftime("%A")
                     logger.info(f"📅  Skipping {day_name} - monitoring mode")
                     debug_print(f"Skipping trading today ({day_name})")
                     time.sleep(3600)
@@ -1668,7 +1687,7 @@ def main():
                         time.sleep(60)
                         continue
                     
-                    if datetime.now().date() != current_date:
+                    if datetime.now(EASTERN).date() != current_date:
                         logger.info("📅  Day changed - resetting")
                         debug_print("Day changed, exiting session loop")
                         break
@@ -1703,7 +1722,7 @@ def main():
                         debug_print(f"Managing active position: type={position_type}, entry=${entry_price:.2f}")
                         
                         if entry_time:
-                            time_in_trade = (datetime.now() - entry_time).total_seconds()
+                            time_in_trade = (datetime.now(EASTERN) - entry_time).total_seconds()
                             debug_print(f"Time in trade: {time_in_trade:.0f}s (max: {MAX_HOLD_TIME}s)")
                             if time_in_trade > MAX_HOLD_TIME:
                                 logger.info(f"⏰  Max hold time ({MAX_HOLD_TIME//60} min)")
@@ -1785,13 +1804,12 @@ def main():
                                 trade_count += 1
                                 trades_today += 1
                                 entry_price = execution_price
-                                entry_time = datetime.now()
+                                entry_time = datetime.now(EASTERN)
                                 stop_loss = signal_stop_loss
                                 position_active = True
                                 position_type = 'long' if signal == 'buy' else 'short'
                                 
                                 risk_amount = abs(entry_price - stop_loss) / entry_price
-                                logger.info(f"✅  {signal.upper()} executed")
                                 logger.info(f"    Entry=${entry_price:.2f}, Stop=${stop_loss:.2f}, Risk={risk_amount:.2%}")
                                 logger.info(f"    Regime={regime}, Strength={strength:.2f}, Trade #{trade_count} ({trades_today}/{MAX_TRADES_PER_DAY})")
                                 
