@@ -1231,7 +1231,6 @@ def submit_short_sell(symbol, notional):
         return False
 
 def submit_limit_short_sell(symbol, notional, limit_price):
-    """Open a short position using limit order"""
     debug_print(f"=== SUBMITTING LIMIT SHORT SELL (OPENING SHORT POSITION) ===")
     debug_print(f"Symbol: {symbol}, Notional: ${notional:.2f}, Limit: ${limit_price:.2f}")
     
@@ -1269,8 +1268,10 @@ def submit_limit_short_sell(symbol, notional, limit_price):
             debug_print(f"Order status: {order_status.status}")
             if order_status.status == 'filled':
                 filled_price = float(order_status.filled_avg_price)
+                stop_distance = abs(filled_price - limit_price) * ATR_STOP_MULTIPLIER
+                suggested_stop = filled_price + stop_distance
                 logger.info(f"✅  FILLED @ ${filled_price:.2f}")
-                debug_print(f"Order filled at ${filled_price:.2f}")
+                debug_print(f"Order filled at ${filled_price:.2f}, suggested stop: ${suggested_stop:.2f}")
                 return filled_price
             elif order_status.status in ['cancelled', 'expired', 'rejected']:
                 logger.warning(f"⚠️  Limit order {order_status.status}")
@@ -1287,6 +1288,7 @@ def submit_limit_short_sell(symbol, notional, limit_price):
         logger.error(f"❌  Failed limit short sell: {e}")
         debug_print(f"Limit short sell failed: {e}")
         return False
+
 
 def submit_buy_to_cover(symbol, qty):
     """Close a short position by buying back shares"""
@@ -1321,6 +1323,8 @@ def submit_buy_to_cover(symbol, qty):
 def submit_limit_sell(symbol, qty, limit_price):
     debug_print(f"=== SUBMITTING LIMIT SELL ORDER ===")
     debug_print(f"Symbol: {symbol}, Qty: {qty}, Limit: ${limit_price:.2f}")
+    
+    qty = abs(qty)
     
     try:
         debug_print("Submitting limit sell order to API...")
@@ -1362,9 +1366,12 @@ def submit_limit_sell(symbol, qty, limit_price):
         debug_print(f"Limit sell failed: {e}")
         return False
 
+
 def submit_market_sell(symbol, qty):
     debug_print(f"=== SUBMITTING MARKET SELL ORDER ===")
     debug_print(f"Symbol: {symbol}, Qty: {qty}")
+    
+    qty = abs(qty)
     
     try:
         current_price = get_current_price(symbol)
@@ -1390,6 +1397,7 @@ def submit_market_sell(symbol, qty):
         logger.error(f"❌  Failed sell: {e}")
         debug_print(f"Market sell failed: {e}")
         return False
+
 
 def close_all_positions():
     debug_print("Closing all positions...")
@@ -1760,11 +1768,24 @@ def main():
                     logger.info(f"📅  New day: {current_date}")
                     debug_print(f"New day: {current_date}, resetting counters")
                     
-                    if hasattr(scale_out_profit_taking, 'target_1_hit'):
-                        delattr(scale_out_profit_taking, 'target_1_hit')
+                    try:
+
+                    
+                        delattr(scale_out_profit_taking, "target_1_hit")
+
+                    
+                    except AttributeError:
+
+                    
+                        pass
                         debug_print("Reset target_1_hit attribute")
-                    if hasattr(atr_based_trailing_stop, 'trailing_stop'):
-                        delattr(atr_based_trailing_stop, 'trailing_stop')
+                    try:
+
+                        delattr(atr_based_trailing_stop, "trailing_stop")
+
+                    except AttributeError:
+
+                        pass
                         debug_print("Reset trailing_stop attribute")
                     if hasattr(main, 'peak_equity'):
                         delattr(main, 'peak_equity')
@@ -1886,10 +1907,20 @@ def main():
                                         submit_buy_to_cover(SYMBOL, abs(qty))
                                     position_active = False
                                     trade_count += 1
-                                    if hasattr(scale_out_profit_taking, 'target_1_hit'):
-                                        delattr(scale_out_profit_taking, 'target_1_hit')
-                                    if hasattr(atr_based_trailing_stop, 'trailing_stop'):
-                                        delattr(atr_based_trailing_stop, 'trailing_stop')
+                                    try:
+
+                                        delattr(scale_out_profit_taking, "target_1_hit")
+
+                                    except AttributeError:
+
+                                        pass
+                                    try:
+
+                                        delattr(atr_based_trailing_stop, "trailing_stop")
+
+                                    except AttributeError:
+
+                                        pass
                                     debug_print(f"Sleeping {seconds_to_human_readable(POLL_INTERVAL)} after exit")
                                     time.sleep(POLL_INTERVAL)
                                     continue
@@ -1905,10 +1936,20 @@ def main():
                                 total_pnl += trade_pnl
                                 logger.info(f"✅  Position closed (PnL: ${trade_pnl:.2f})")
                                 debug_print(f"Position fully closed, PnL: ${trade_pnl:.2f}")
-                                if hasattr(scale_out_profit_taking, 'target_1_hit'):
-                                    delattr(scale_out_profit_taking, 'target_1_hit')
-                                if hasattr(atr_based_trailing_stop, 'trailing_stop'):
-                                    delattr(atr_based_trailing_stop, 'trailing_stop')
+                                try:
+
+                                    delattr(scale_out_profit_taking, "target_1_hit")
+
+                                except AttributeError:
+
+                                    pass
+                                try:
+
+                                    delattr(atr_based_trailing_stop, "trailing_stop")
+
+                                except AttributeError:
+
+                                    pass
                                 debug_print(f"Sleeping {seconds_to_human_readable(POLL_INTERVAL)} after exit")
                                 time.sleep(POLL_INTERVAL)
                                 continue
@@ -1924,10 +1965,20 @@ def main():
                                 trade_count += 1
                                 logger.info(f"🛑  Stop hit")
                                 debug_print("Stop hit, position closed")
-                                if hasattr(scale_out_profit_taking, 'target_1_hit'):
-                                    delattr(scale_out_profit_taking, 'target_1_hit')
-                                if hasattr(atr_based_trailing_stop, 'trailing_stop'):
-                                    delattr(atr_based_trailing_stop, 'trailing_stop')
+                                try:
+
+                                    delattr(scale_out_profit_taking, "target_1_hit")
+
+                                except AttributeError:
+
+                                    pass
+                                try:
+
+                                    delattr(atr_based_trailing_stop, "trailing_stop")
+
+                                except AttributeError:
+
+                                    pass
                                 debug_print(f"Sleeping {seconds_to_human_readable(POLL_INTERVAL)} after exit")
                                 time.sleep(POLL_INTERVAL)
                                 continue
@@ -1996,9 +2047,22 @@ def main():
                     
                     position_status = f"{position_type.upper()}" if position_active else "FLAT"
                     try:
-                        current_time = clock.timestamp.strftime("%I:%M:%S %p ET")
+
+                        ts = clock.timestamp
+
+                        if ts.tzinfo is None:
+
+                            ts = EASTERN.localize(ts)
+
+                        else:
+
+                            ts = ts.astimezone(EASTERN)
+
+                        current_time = ts.strftime("%I:%M:%S %p ET")
+
                     except:
-                        current_time = datetime.now().strftime("%I:%M:%S %p ET")
+
+                        current_time = datetime.now(EASTERN).strftime("%I:%M:%S %p ET")
                     
                     hourly_trend = check_multiframe_confluence(SYMBOL)
                     
