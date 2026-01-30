@@ -63,7 +63,8 @@ DEFAULT_CONFIG = {
     "USE_200_SMA_FILTER": False,
     "REQUIRE_MACD_CONFIRMATION": False,
     "MIN_RISK_REWARD": 1.5,
-    "PULLBACK_PERCENTAGE": 0.382
+    "PULLBACK_PERCENTAGE": 0.382,
+    "ENABLE_SHORT_SELLING": False
 }
 
 if ENV_PATH.exists():
@@ -128,6 +129,7 @@ USE_200_SMA_FILTER = bool(config["USE_200_SMA_FILTER"])
 REQUIRE_MACD_CONFIRMATION = bool(config["REQUIRE_MACD_CONFIRMATION"])
 MIN_RISK_REWARD = float(config["MIN_RISK_REWARD"])
 PULLBACK_PERCENTAGE = float(config["PULLBACK_PERCENTAGE"])
+ENABLE_SHORT_SELLING = bool(config.get("ENABLE_SHORT_SELLING", False))
 
 EASTERN = pytz.timezone('US/Eastern')
 
@@ -1192,6 +1194,262 @@ def submit_market_buy(symbol, notional):
         debug_print(f"Market buy failed: {e}")
         return False
 
+def submit_short_sell(symbol, notional):
+    """Open a short position by selling shares we don't own"""
+    debug_print(f"=== SUBMITTING SHORT SELL (OPENING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Notional: ${notional:.2f}")
+    
+    try:
+        current_price = get_current_price(symbol)
+        if current_price == 0:
+            debug_print("Short sell failed: could not get current price")
+            return False
+        
+        execution_price = apply_slippage(current_price, False)
+        shares = int(notional / execution_price)
+        debug_print(f"Shares to short: {shares}, Expected execution: ${execution_price:.2f}")
+        
+        if shares == 0:
+            debug_print("Short sell failed: shares = 0")
+            return False
+        
+        debug_print("Submitting short sell order to API...")
+        api.submit_order(
+            symbol=symbol,
+            qty=shares,
+            side="sell",
+            type="market",
+            time_in_force="day"
+        )
+        logger.info(f"🔴 SHORT SELL: {shares} shares @ ~${execution_price:.2f}")
+        debug_print(f"Short sell order submitted (opened short position)")
+        return execution_price
+    except Exception as e:
+        logger.error(f"❌  Failed short sell: {e}")
+        debug_print(f"Short sell failed: {e}")
+        return False
+
+def submit_limit_short_sell(symbol, notional, limit_price):
+    """Open a short position using limit order"""
+    debug_print(f"=== SUBMITTING LIMIT SHORT SELL (OPENING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Notional: ${notional:.2f}, Limit: ${limit_price:.2f}")
+    
+    if notional < MIN_NOTIONAL:
+        logger.warning(f"⚠️  Notional ${notional:.2f} < minimum ${MIN_NOTIONAL}")
+        debug_print(f"Order rejected: notional too small")
+        return False
+    
+    try:
+        shares = int(notional / limit_price)
+        debug_print(f"Calculated shares to short: {shares}")
+        
+        if shares == 0:
+            logger.warning(f"⚠️  Cannot short fractional shares with ${notional:.2f}")
+            debug_print(f"Order rejected: shares = 0")
+            return False
+        
+        debug_print(f"Submitting limit short sell order to API...")
+        order = api.submit_order(
+            symbol=symbol,
+            qty=shares,
+            side="sell",
+            type="limit",
+            limit_price=round(limit_price, 2),
+            time_in_force="gtc"
+        )
+        
+        debug_print(f"Order submitted, ID: {order.id}")
+        logger.info(f"🔴 LIMIT SHORT SELL: {shares} shares @ ${limit_price:.2f}")
+        
+        start_time = time.time()
+        debug_print(f"Waiting for fill (timeout: {LIMIT_ORDER_TIMEOUT}s)...")
+        while (time.time() - start_time) < LIMIT_ORDER_TIMEOUT:
+            order_status = api.get_order(order.id)
+            debug_print(f"Order status: {order_status.status}")
+            if order_status.status == 'filled':
+                filled_price = float(order_status.filled_avg_price)
+                logger.info(f"✅  FILLED @ ${filled_price:.2f}")
+                debug_print(f"Order filled at ${filled_price:.2f}")
+                return filled_price
+            elif order_status.status in ['cancelled', 'expired', 'rejected']:
+                logger.warning(f"⚠️  Limit order {order_status.status}")
+                debug_print(f"Order {order_status.status}")
+                return False
+            time.sleep(2)
+        
+        logger.warning("⏱️  Timeout - switching to market")
+        debug_print("Timeout reached, canceling order and switching to market")
+        api.cancel_order(order.id)
+        return submit_short_sell(symbol, notional)
+        
+    except Exception as e:
+        logger.error(f"❌  Failed limit short sell: {e}")
+        debug_print(f"Limit short sell failed: {e}")
+        return False
+
+def submit_buy_to_cover(symbol, qty):
+    """Close a short position by buying back shares"""
+    debug_print(f"=== SUBMITTING BUY TO COVER (CLOSING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Qty: {qty}")
+    
+    try:
+        current_price = get_current_price(symbol)
+        if current_price == 0:
+            debug_print("Buy to cover failed: could not get current price")
+            return False
+        
+        execution_price = apply_slippage(current_price, True)
+        debug_print(f"Expected execution: ${execution_price:.2f}")
+        
+        debug_print("Submitting buy to cover order to API...")
+        api.submit_order(
+            symbol=symbol,
+            qty=qty,
+            side="buy",
+            type="market",
+            time_in_force="day"
+        )
+        logger.info(f"🟢 BUY TO COVER: {qty} shares @ ~${execution_price:.2f}")
+        debug_print(f"Buy to cover order submitted (closed short position)")
+        return execution_price
+    except Exception as e:
+        logger.error(f"❌  Failed buy to cover: {e}")
+        debug_print(f"Buy to cover failed: {e}")
+        return False
+
+def submit_short_sell(symbol, notional):
+    """Open a short position by selling shares we don't own"""
+    debug_print(f"=== SUBMITTING SHORT SELL (OPENING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Notional: ${notional:.2f}")
+    
+    if not ENABLE_SHORT_SELLING:
+        logger.warning("⚠️  Short selling is disabled in config")
+        debug_print("Short selling disabled in config, aborting")
+        return False
+    
+    try:
+        current_price = get_current_price(symbol)
+        if current_price == 0:
+            debug_print("Short sell failed: could not get current price")
+            return False
+        
+        execution_price = apply_slippage(current_price, False)
+        shares = int(notional / execution_price)
+        debug_print(f"Shares to short: {shares}, Expected execution: ${execution_price:.2f}")
+        
+        if shares == 0:
+            debug_print("Short sell failed: shares = 0")
+            return False
+        
+        debug_print("Submitting short sell order to API...")
+        api.submit_order(
+            symbol=symbol,
+            qty=shares,
+            side="sell",
+            type="market",
+            time_in_force="day"
+        )
+        logger.info(f"🔴 SHORT SELL: {shares} shares @ ~${execution_price:.2f}")
+        debug_print(f"Short sell order submitted (opened short position)")
+        return execution_price
+    except Exception as e:
+        logger.error(f"❌  Failed short sell: {e}")
+        debug_print(f"Short sell failed: {e}")
+        return False
+
+def submit_limit_short_sell(symbol, notional, limit_price):
+    """Open a short position using limit order"""
+    debug_print(f"=== SUBMITTING LIMIT SHORT SELL (OPENING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Notional: ${notional:.2f}, Limit: ${limit_price:.2f}")
+    
+    if not ENABLE_SHORT_SELLING:
+        logger.warning("⚠️  Short selling is disabled in config")
+        debug_print("Short selling disabled in config, aborting")
+        return False
+    
+    if notional < MIN_NOTIONAL:
+        logger.warning(f"⚠️  Notional ${notional:.2f} < minimum ${MIN_NOTIONAL}")
+        debug_print(f"Order rejected: notional too small")
+        return False
+    
+    try:
+        shares = int(notional / limit_price)
+        debug_print(f"Calculated shares to short: {shares}")
+        
+        if shares == 0:
+            logger.warning(f"⚠️  Cannot short fractional shares with ${notional:.2f}")
+            debug_print(f"Order rejected: shares = 0")
+            return False
+        
+        debug_print(f"Submitting limit short sell order to API...")
+        order = api.submit_order(
+            symbol=symbol,
+            qty=shares,
+            side="sell",
+            type="limit",
+            limit_price=round(limit_price, 2),
+            time_in_force="gtc"
+        )
+        
+        debug_print(f"Order submitted, ID: {order.id}")
+        logger.info(f"🔴 LIMIT SHORT SELL: {shares} shares @ ${limit_price:.2f}")
+        
+        start_time = time.time()
+        debug_print(f"Waiting for fill (timeout: {LIMIT_ORDER_TIMEOUT}s)...")
+        while (time.time() - start_time) < LIMIT_ORDER_TIMEOUT:
+            order_status = api.get_order(order.id)
+            debug_print(f"Order status: {order_status.status}")
+            if order_status.status == 'filled':
+                filled_price = float(order_status.filled_avg_price)
+                logger.info(f"✅  FILLED @ ${filled_price:.2f}")
+                debug_print(f"Order filled at ${filled_price:.2f}")
+                return filled_price
+            elif order_status.status in ['cancelled', 'expired', 'rejected']:
+                logger.warning(f"⚠️  Limit order {order_status.status}")
+                debug_print(f"Order {order_status.status}")
+                return False
+            time.sleep(2)
+        
+        logger.warning("⏱️  Timeout - switching to market")
+        debug_print("Timeout reached, canceling order and switching to market")
+        api.cancel_order(order.id)
+        return submit_short_sell(symbol, notional)
+        
+    except Exception as e:
+        logger.error(f"❌  Failed limit short sell: {e}")
+        debug_print(f"Limit short sell failed: {e}")
+        return False
+
+def submit_buy_to_cover(symbol, qty):
+    """Close a short position by buying back shares"""
+    debug_print(f"=== SUBMITTING BUY TO COVER (CLOSING SHORT POSITION) ===")
+    debug_print(f"Symbol: {symbol}, Qty: {qty}")
+    
+    try:
+        current_price = get_current_price(symbol)
+        if current_price == 0:
+            debug_print("Buy to cover failed: could not get current price")
+            return False
+        
+        execution_price = apply_slippage(current_price, True)
+        debug_print(f"Expected execution: ${execution_price:.2f}")
+        
+        debug_print("Submitting buy to cover order to API...")
+        api.submit_order(
+            symbol=symbol,
+            qty=qty,
+            side="buy",
+            type="market",
+            time_in_force="day"
+        )
+        logger.info(f"🟢 BUY TO COVER: {qty} shares @ ~${execution_price:.2f}")
+        debug_print(f"Buy to cover order submitted (closed short position)")
+        return execution_price
+    except Exception as e:
+        logger.error(f"❌  Failed buy to cover: {e}")
+        debug_print(f"Buy to cover failed: {e}")
+        return False
+
 def submit_limit_sell(symbol, qty, limit_price):
     debug_print(f"=== SUBMITTING LIMIT SELL ORDER ===")
     debug_print(f"Symbol: {symbol}, Qty: {qty}, Limit: ${limit_price:.2f}")
@@ -1303,7 +1561,7 @@ def current_position_qty(symbol):
         for pos in positions:
             if pos.symbol == symbol:
                 qty = int(float(pos.qty))
-                debug_print(f"Position qty: {qty}")
+                debug_print(f"Position qty: {qty} ({'SHORT' if qty < 0 else 'LONG'})")
                 return qty
         debug_print("No position found")
         return 0
@@ -1490,11 +1748,14 @@ def scale_out_profit_taking(symbol, entry_price, current_price, stop_loss, posit
             debug_print(f"Target 1 ({PROFIT_TARGET_1}R) hit, scaling out {partial_qty} shares")
             
             if partial_qty > 0:
-                if USE_LIMIT_ORDERS:
-                    limit_price = current_price
-                    submit_limit_sell(symbol, partial_qty, limit_price)
+                if position_type == 'long':
+                    if USE_LIMIT_ORDERS:
+                        limit_price = current_price
+                        submit_limit_sell(symbol, partial_qty, limit_price)
+                    else:
+                        submit_market_sell(symbol, partial_qty)
                 else:
-                    submit_market_sell(symbol, partial_qty)
+                    submit_buy_to_cover(symbol, partial_qty)
                 
                 logger.info(f"🎯  Target 1 ({PROFIT_TARGET_1}R) - 50% out @ ${current_price:.2f}")
                 
@@ -1505,13 +1766,16 @@ def scale_out_profit_taking(symbol, entry_price, current_price, stop_loss, posit
     
     if profit_in_r >= PROFIT_TARGET_2:
         remaining_qty = current_position_qty(symbol)
-        debug_print(f"Target 2 ({PROFIT_TARGET_2}R) hit, exiting {remaining_qty} shares")
-        if remaining_qty > 0:
-            if USE_LIMIT_ORDERS:
-                limit_price = current_price
-                submit_limit_sell(symbol, remaining_qty, limit_price)
+        debug_print(f"Target 2 ({PROFIT_TARGET_2}R) hit, exiting {abs(remaining_qty)} shares")
+        if remaining_qty != 0:
+            if position_type == 'long':
+                if USE_LIMIT_ORDERS:
+                    limit_price = current_price
+                    submit_limit_sell(symbol, remaining_qty, limit_price)
+                else:
+                    submit_market_sell(symbol, remaining_qty)
             else:
-                submit_market_sell(symbol, remaining_qty)
+                submit_buy_to_cover(symbol, abs(remaining_qty))
             
             logger.info(f"🎯🎯  Target 2 ({PROFIT_TARGET_2}R) - Full exit @ ${current_price:.2f}")
             return True
@@ -1661,8 +1925,9 @@ def main():
                 sma_200_trend = check_200_sma_filter(SYMBOL)
                 logger.info(f"📈  200 SMA: {sma_200_trend.upper()}")
                 
-                logger.info(f"⚙️  Config: {SYMBOL}, Risk={RISK_PER_TRADE:.2%}, Trades={trades_today}/{MAX_TRADES_PER_DAY}")
-                debug_print(f"Config: SYMBOL={SYMBOL}, RISK={RISK_PER_TRADE:.2%}, TRADES={trades_today}/{MAX_TRADES_PER_DAY}")
+                short_status = "ON" if ENABLE_SHORT_SELLING else "OFF"
+                logger.info(f"⚙️  Config: {SYMBOL}, Risk={RISK_PER_TRADE:.2%}, Trades={trades_today}/{MAX_TRADES_PER_DAY}, Shorts={short_status}")
+                debug_print(f"Config: SYMBOL={SYMBOL}, RISK={RISK_PER_TRADE:.2%}, TRADES={trades_today}/{MAX_TRADES_PER_DAY}, SHORT_SELLING={ENABLE_SHORT_SELLING}")
                 
                 trade_count = 0
                 entry_price = 0
@@ -1728,8 +1993,11 @@ def main():
                                 logger.info(f"⏰  Max hold time ({MAX_HOLD_TIME//60} min)")
                                 debug_print(f"Max hold time exceeded, closing position")
                                 qty = current_position_qty(SYMBOL)
-                                if qty > 0:
-                                    submit_market_sell(SYMBOL, qty)
+                                if qty != 0:
+                                    if position_type == 'long':
+                                        submit_market_sell(SYMBOL, qty)
+                                    else:
+                                        submit_buy_to_cover(SYMBOL, abs(qty))
                                     position_active = False
                                     trade_count += 1
                                     if hasattr(scale_out_profit_taking, 'target_1_hit'):
@@ -1744,7 +2012,10 @@ def main():
                             remaining_qty = current_position_qty(SYMBOL)
                             if remaining_qty == 0:
                                 position_active = False
-                                trade_pnl = (current_price - entry_price) * 100
+                                if position_type == 'long':
+                                    trade_pnl = (current_price - entry_price) * 100
+                                else:
+                                    trade_pnl = (entry_price - current_price) * 100
                                 total_pnl += trade_pnl
                                 logger.info(f"✅  Position closed (PnL: ${trade_pnl:.2f})")
                                 debug_print(f"Position fully closed, PnL: ${trade_pnl:.2f}")
@@ -1758,8 +2029,11 @@ def main():
                         
                         if atr_based_trailing_stop(SYMBOL, entry_price, current_price, stop_loss, position_type):
                             qty = current_position_qty(SYMBOL)
-                            if qty > 0:
-                                submit_market_sell(SYMBOL, qty)
+                            if qty != 0:
+                                if position_type == 'long':
+                                    submit_market_sell(SYMBOL, qty)
+                                else:
+                                    submit_buy_to_cover(SYMBOL, abs(qty))
                                 position_active = False
                                 trade_count += 1
                                 logger.info(f"🛑  Stop hit")
