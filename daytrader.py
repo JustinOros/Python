@@ -764,7 +764,7 @@ def advanced_signal_generator(symbol):
     bars = get_recent_bars(symbol, 100)
     if bars is None or len(bars) < 50:
         debug_print("Insufficient bars for signal generation")
-        return None, 0, 0
+        return None, 0, 0, None
     
     debug_print(f"Received {len(bars)} bars")
     
@@ -1018,7 +1018,8 @@ def advanced_signal_generator(symbol):
     else:
         debug_print("=== NO SIGNAL GENERATED ===")
     
-    return signal, signal_strength, stop_loss
+    position_type = 'long' if signal == 'buy' else ('short' if signal == 'sell' else None)
+    return signal, signal_strength, stop_loss, position_type
 
 def wait_until_market_open():
     debug_print("Checking if market is open...")
@@ -1487,7 +1488,7 @@ def get_market_status():
             "timestamp": datetime.now()
         }
 
-def calculate_position_size(equity, stop_loss, entry_price, regime='normal'):
+def calculate_position_size(equity, stop_loss, entry_price, regime='normal', max_position_pct=0.95):
     debug_print(f"Calculating position size: equity=${equity:.2f}, entry=${entry_price:.2f}, stop=${stop_loss:.2f}, regime={regime}")
     
     risk_amount = equity * RISK_PER_TRADE
@@ -1504,6 +1505,11 @@ def calculate_position_size(equity, stop_loss, entry_price, regime='normal'):
     
     position_size = risk_amount / stop_distance * entry_price
     position_size = max(MIN_NOTIONAL, position_size)
+    
+    max_position = equity * max_position_pct
+    if position_size > max_position:
+        position_size = max_position
+        debug_print(f"Position capped at {max_position_pct:.0%} of equity: ${position_size:.2f}")
     
     logger.info(f"💰  Position: Risk=${risk_amount:.2f}, Stop=${stop_distance:.2f}, Size=${position_size:.2f}")
     debug_print(f"Position size: ${position_size:.2f}")
@@ -1760,6 +1766,9 @@ def main():
                     if hasattr(atr_based_trailing_stop, 'trailing_stop'):
                         delattr(atr_based_trailing_stop, 'trailing_stop')
                         debug_print("Reset trailing_stop attribute")
+                    if hasattr(main, 'peak_equity'):
+                        delattr(main, 'peak_equity')
+                        debug_print("Reset peak_equity attribute")
                 
                 if should_skip_trading_day():
                     day_name = datetime.now(EASTERN).strftime("%A")
@@ -1829,8 +1838,14 @@ def main():
                         break
                     
                     current_equity = fetch_equity()
-                    drawdown = (opening_equity - current_equity) / opening_equity
-                    debug_print(f"Drawdown check: opening=${opening_equity:.2f}, current=${current_equity:.2f}, drawdown={drawdown:.2%}")
+                    
+                    if not hasattr(main, 'peak_equity'):
+                        main.peak_equity = opening_equity
+                    if current_equity > main.peak_equity:
+                        main.peak_equity = current_equity
+                    
+                    drawdown = (main.peak_equity - current_equity) / main.peak_equity
+                    debug_print(f"Drawdown check: peak=${main.peak_equity:.2f}, current=${current_equity:.2f}, drawdown={drawdown:.2%}")
                     
                     if drawdown > MAX_DRAWDOWN:
                         logger.error(f"💸  Max drawdown: {drawdown:.2%}")
@@ -1923,7 +1938,11 @@ def main():
                         time.sleep(POLL_INTERVAL)
                         continue
                     
-                    signal, strength, signal_stop_loss = advanced_signal_generator(SYMBOL)
+                    signal, strength, signal_stop_loss, signal_position_type = advanced_signal_generator(SYMBOL)
+                    
+                    if signal == 'sell' and not ENABLE_SHORT_SELLING:
+                        debug_print("Short selling disabled, ignoring sell signal")
+                        signal = None
                     
                     bars = get_recent_bars(SYMBOL, 50)
                     if bars is not None:
@@ -1938,6 +1957,7 @@ def main():
                         position_size = calculate_position_size(current_equity, signal_stop_loss, current_price, regime)
                         
                         if buying_power >= position_size:
+                            execution_price = False
                             if signal == 'buy':
                                 if USE_LIMIT_ORDERS:
                                     bid, ask = get_bid_ask(SYMBOL)
@@ -1945,17 +1965,13 @@ def main():
                                     execution_price = submit_limit_buy(SYMBOL, position_size, limit_price)
                                 else:
                                     execution_price = submit_market_buy(SYMBOL, position_size)
-                            elif signal == 'sell' and ENABLE_SHORT_SELLING:
+                            elif signal == 'sell':
                                 if USE_LIMIT_ORDERS:
                                     bid, ask = get_bid_ask(SYMBOL)
                                     limit_price = ask
                                     execution_price = submit_limit_short_sell(SYMBOL, position_size, limit_price)
                                 else:
                                     execution_price = submit_short_sell(SYMBOL, position_size)
-                            else:
-                                logger.warning("⚠️  Short selling disabled - skipping sell signal")
-                                debug_print("Short selling disabled, skipping sell signal")
-                                execution_price = False
                             
                             if execution_price:
                                 trade_count += 1
