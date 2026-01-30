@@ -892,7 +892,7 @@ def advanced_signal_generator(symbol):
                     pullback_ok = True
                     debug_print(f"Pullback OK: price near short MA")
                 
-                if pullback_ok and rsi > 45:
+                if pullback_ok and rsi < 55:
                     debug_print(f"Pullback and RSI conditions met (RSI={rsi:.2f})")
                     if hourly_trend in ['bearish', 'neutral']:
                         debug_print(f"Hourly trend favorable: {hourly_trend}")
